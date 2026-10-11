@@ -1,6 +1,7 @@
 Workzeno
 Workzeno is a project and task management application built with React, TypeScript, Spring Boot, and PostgreSQL.
 Technology Stack
+
 Frontend
 •	React
 •	TypeScript
@@ -9,6 +10,7 @@ Frontend
 •	TanStack Query
 •	React Hook Form
 •	Zod
+
 Backend
 •	Java 21
 •	Spring Boot
