@@ -1,0 +1,27 @@
+@'
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Java / Spring Boot
+backend/**/target/
+*.class
+
+# Node.js / React
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+'@ | Set-Content .gitignore
