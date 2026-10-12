@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { getApiHealth } from "./features/health/helathApi";
+import { getApiHealth } from "./features/health/healthApi";
 type CheckState = "idle" | "checking" | "connected" | "failed";
 
 export default function App() {
@@ -48,7 +48,6 @@ export default function App() {
         {state === "failed" &&
           "Could not reach the backend. Check that it is running."}
       </p>
-      
     </main>
   );
 }
