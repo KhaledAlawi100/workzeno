@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/workzeno}
+    username: ${DB_USERNAME:workzeno}
+
+logging:
+  level:
+    org.flywaydb: INFO
