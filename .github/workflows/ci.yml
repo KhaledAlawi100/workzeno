@@ -45,7 +45,7 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-          cache-dependency-path: backend/pom.xml
+          cache-dependency-path: backend/workzeno/pom.xml
 
       - name: Make Maven Wrapper executable
         working-directory: backend
