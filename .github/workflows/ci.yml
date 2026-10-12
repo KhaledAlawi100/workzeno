@@ -48,11 +48,11 @@ jobs:
           cache-dependency-path: backend/workzeno/pom.xml
 
       - name: Make Maven Wrapper executable
-        working-directory: backend
+        working-directory: backend/workzeno
         run: chmod +x mvnw
 
       - name: Run Maven verification
-        working-directory: backend
+        working-directory: backend/workzeno
         run: ./mvnw -B clean verify
 
   frontend:
