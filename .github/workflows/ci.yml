@@ -34,6 +34,7 @@ jobs:
       DB_URL: jdbc:postgresql://localhost:5432/workzeno
       DB_USERNAME: workzeno
       DB_PASSWORD: test-password
+      JWT_SECRET_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 
     steps:
       - name: Check out repository
