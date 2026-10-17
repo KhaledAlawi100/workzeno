@@ -38,3 +38,18 @@ management:
 app:
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
+
+logging:
+  level:
+    com.workzeno.workzeno: DEBUG
+    org.springframework.security: INFO
+
+workzeno:
+  security:
+    jwt:
+      # Must be supplied through the environment.
+      secret-base64: ${JWT_SECRET_BASE64}
+      issuer: workzeno-api
+      access-token-ttl: 15m
+
+
