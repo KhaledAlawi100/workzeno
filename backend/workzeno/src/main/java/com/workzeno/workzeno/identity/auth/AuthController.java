@@ -1,10 +1,7 @@
 
 package com.workzeno.workzeno.identity.auth;
 
-import com.workzeno.workzeno.identity.auth.dto.LoginRequest;
-import com.workzeno.workzeno.identity.auth.dto.LoginResponse;
-import com.workzeno.workzeno.identity.auth.dto.RegisterRequest;
-import com.workzeno.workzeno.identity.auth.dto.RegisterResponse;
+import com.workzeno.workzeno.identity.auth.dto.*;
 import com.workzeno.workzeno.shared.api.ApiResponse;
 import com.workzeno.workzeno.shared.api.ApiResponseFactory;
 
@@ -61,4 +58,22 @@ public class AuthController {
 
         return ResponseEntity.ok(body);
     }
+
+
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<LoginResponse>> refresh(
+            @Valid @RequestBody RefreshRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        LoginResponse result = authService.refresh(request);
+
+        ApiResponse<LoginResponse> body = responseFactory.success(
+                "Token refresh successful",
+                result,
+                httpRequest
+        );
+
+        return ResponseEntity.ok(body);
+    }
+
 }

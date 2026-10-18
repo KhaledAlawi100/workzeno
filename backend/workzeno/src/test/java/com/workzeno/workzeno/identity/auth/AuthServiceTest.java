@@ -1,3 +1,4 @@
+
 package com.workzeno.workzeno.identity.auth;
 
 import com.workzeno.workzeno.identity.auth.dto.LoginRequest;
@@ -6,6 +7,8 @@ import com.workzeno.workzeno.identity.auth.dto.RegisterRequest;
 import com.workzeno.workzeno.identity.auth.dto.RegisterResponse;
 import com.workzeno.workzeno.identity.security.AccessTokenService;
 import com.workzeno.workzeno.identity.security.JwtProperties;
+import com.workzeno.workzeno.identity.security.RefreshTokenProperties;
+import com.workzeno.workzeno.identity.security.RefreshTokenService;
 import com.workzeno.workzeno.identity.user.User;
 import com.workzeno.workzeno.identity.user.UserRepository;
 import com.workzeno.workzeno.identity.user.UserRole;
@@ -58,6 +61,15 @@ class AuthServiceTest {
     @Mock
     private JwtProperties jwtProperties;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
+    @Mock
+    private RefreshTokenProperties refreshTokenProperties;
+
+    @Mock
+    private RefreshSessionRepository refreshSessionRepository;
+
     @InjectMocks
     private AuthService authService;
 
@@ -65,6 +77,10 @@ class AuthServiceTest {
     private static final String PASSWORD = "StrongPassword123!";
     private static final String HASH = "$2a$12$exampleHash";
     private static final String TOKEN = "signed.jwt.token";
+    private static final String REFRESH_TOKEN = "test-refresh-token";
+    private static final String REFRESH_TOKEN_HASH =
+            "abcdef0123456789abcdef0123456789"
+                    + "abcdef0123456789abcdef0123456789";
     private static final Duration TOKEN_TTL = Duration.ofMinutes(15);
     private static final UUID USER_ID = UUID.randomUUID();
 
@@ -126,7 +142,9 @@ class AuthServiceTest {
         when(userRepository.existsByEmail(EMAIL)).thenReturn(false);
         when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
         when(userRepository.saveAndFlush(any(User.class)))
-                .thenThrow(new DataIntegrityViolationException("unique violation"));
+                .thenThrow(
+                        new DataIntegrityViolationException("unique violation")
+                );
 
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(DuplicateEmailException.class);
@@ -137,45 +155,73 @@ class AuthServiceTest {
     // ---------------------------------------------------------
 
     @Test
-    void login_shouldAuthenticateAndIssueAccessToken() {
+    void login_shouldAuthenticateAndIssueBothTokens() {
         LoginRequest request =
                 new LoginRequest("  KHALED@EXAMPLE.COM  ", PASSWORD);
 
         when(jwtProperties.getAccessTokenTtl()).thenReturn(TOKEN_TTL);
+        when(refreshTokenProperties.ttl())
+                .thenReturn(Duration.ofDays(7));
+
+        when(refreshTokenService.generateToken())
+                .thenReturn(REFRESH_TOKEN);
+        when(refreshTokenService.hashToken(REFRESH_TOKEN))
+                .thenReturn(REFRESH_TOKEN_HASH);
 
         WorkzenoUserDetails userDetails = mock(WorkzenoUserDetails.class);
         when(userDetails.getUserId()).thenReturn(USER_ID);
         when(userDetails.getUsername()).thenReturn(EMAIL);
 
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-
-        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER")))
-                .when(authentication).getAuthorities();
+        Authentication authentication =
+                authenticationWith(
+                        userDetails,
+                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                );
 
         when(authenticationManager.authenticate(any(
                 UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
 
-        when(accessTokenService.issueAccessToken(USER_ID)).thenReturn(TOKEN);
+        when(accessTokenService.issueAccessToken(USER_ID))
+                .thenReturn(TOKEN);
 
         LoginResponse response = authService.login(request);
 
-        ArgumentCaptor<UsernamePasswordAuthenticationToken> captor =
+        ArgumentCaptor<UsernamePasswordAuthenticationToken> authCaptor =
                 ArgumentCaptor.forClass(
-                        UsernamePasswordAuthenticationToken.class);
+                        UsernamePasswordAuthenticationToken.class
+                );
 
-        verify(authenticationManager).authenticate(captor.capture());
+        verify(authenticationManager).authenticate(authCaptor.capture());
 
-        assertThat(captor.getValue().getPrincipal()).isEqualTo(EMAIL);
-        assertThat(captor.getValue().getCredentials()).isEqualTo(PASSWORD);
-        assertThat(captor.getValue().isAuthenticated()).isFalse();
+        assertThat(authCaptor.getValue().getPrincipal()).isEqualTo(EMAIL);
+        assertThat(authCaptor.getValue().getCredentials()).isEqualTo(PASSWORD);
+        assertThat(authCaptor.getValue().isAuthenticated()).isFalse();
 
         verify(accessTokenService).issueAccessToken(USER_ID);
+        verify(refreshTokenService).generateToken();
+        verify(refreshTokenService).hashToken(REFRESH_TOKEN);
+
+        ArgumentCaptor<RefreshSession> sessionCaptor =
+                ArgumentCaptor.forClass(RefreshSession.class);
+
+        verify(refreshSessionRepository).save(sessionCaptor.capture());
+
+        RefreshSession savedSession = sessionCaptor.getValue();
+
+        assertThat(savedSession.getId()).isNotNull();
+        assertThat(savedSession.getUserId()).isEqualTo(USER_ID);
+        assertThat(savedSession.getFamilyId()).isNotNull();
+        assertThat(savedSession.getTokenHash())
+                .isEqualTo(REFRESH_TOKEN_HASH);
+        assertThat(savedSession.getCreatedAt()).isNotNull();
+        assertThat(savedSession.getExpiresAt())
+                .isAfter(savedSession.getCreatedAt());
 
         assertThat(response.email()).isEqualTo(EMAIL);
         assertThat(response.role()).isEqualTo("USER");
         assertThat(response.accessToken()).isEqualTo(TOKEN);
+        assertThat(response.refreshToken()).isEqualTo(REFRESH_TOKEN);
         assertThat(response.tokenType()).isEqualTo("Bearer");
         assertThat(response.expiresIn()).isEqualTo(900L);
     }
@@ -197,6 +243,8 @@ class AuthServiceTest {
                 });
 
         verifyNoInteractions(accessTokenService);
+        verifyNoInteractions(refreshTokenService);
+        verifyNoInteractions(refreshSessionRepository);
     }
 
     @Test
@@ -204,7 +252,8 @@ class AuthServiceTest {
         LoginRequest request = new LoginRequest(EMAIL, PASSWORD);
 
         Authentication authentication = mock(Authentication.class);
-        when(authentication.getPrincipal()).thenReturn("unexpected-principal");
+        when(authentication.getPrincipal())
+                .thenReturn("unexpected-principal");
 
         when(authenticationManager.authenticate(any(
                 UsernamePasswordAuthenticationToken.class)))
@@ -215,6 +264,8 @@ class AuthServiceTest {
                 .hasMessage("Unexpected authenticated principal type");
 
         verifyNoInteractions(accessTokenService);
+        verifyNoInteractions(refreshTokenService);
+        verifyNoInteractions(refreshSessionRepository);
     }
 
     @Test
@@ -223,8 +274,8 @@ class AuthServiceTest {
 
         WorkzenoUserDetails userDetails = mock(WorkzenoUserDetails.class);
 
-        // ✅ FIX: build the mock fully BEFORE using it in thenReturn(...)
-        Authentication authentication = authenticationWith(userDetails, List.of());
+        Authentication authentication =
+                authenticationWith(userDetails, List.of());
 
         when(authenticationManager.authenticate(any(
                 UsernamePasswordAuthenticationToken.class)))
@@ -235,6 +286,8 @@ class AuthServiceTest {
                 .hasMessage("Authenticated user has no role authority");
 
         verifyNoInteractions(accessTokenService);
+        verifyNoInteractions(refreshTokenService);
+        verifyNoInteractions(refreshSessionRepository);
     }
 
     private Authentication authenticationWith(

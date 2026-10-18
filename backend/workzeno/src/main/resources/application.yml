@@ -38,6 +38,9 @@ management:
 app:
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
+  auth:
+    refresh-token:
+      ttl: 7d
 
 logging:
   level:
