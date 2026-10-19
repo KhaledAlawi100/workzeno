@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -151,6 +152,22 @@ public class GlobalExceptionHandler
                 .status(HttpStatus.BAD_REQUEST)
                 .contentType(MediaType.APPLICATION_PROBLEM_JSON)
                 .body(problem);
+    }
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<ProblemDetail> handleAuthorizationDenied(
+            AuthorizationDeniedException exception,
+            HttpServletRequest request) {
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN,
+                "You do not have permission to access this resource"
+        );
+
+        problem.setTitle("Forbidden");
+        problem.setInstance(URI.create(request.getRequestURI()));
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
     }
 }
 

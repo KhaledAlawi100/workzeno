@@ -182,7 +182,8 @@ class AuthServiceTest {
                 UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
 
-        when(accessTokenService.issueAccessToken(USER_ID))
+        // Access tokens now include the authenticated user's role.
+        when(accessTokenService.issueAccessToken(USER_ID, "USER"))
                 .thenReturn(TOKEN);
 
         LoginResponse response = authService.login(request);
@@ -198,7 +199,8 @@ class AuthServiceTest {
         assertThat(authCaptor.getValue().getCredentials()).isEqualTo(PASSWORD);
         assertThat(authCaptor.getValue().isAuthenticated()).isFalse();
 
-        verify(accessTokenService).issueAccessToken(USER_ID);
+        // Verify that the access token is issued with the user's role.
+        verify(accessTokenService).issueAccessToken(USER_ID, "USER");
         verify(refreshTokenService).generateToken();
         verify(refreshTokenService).hashToken(REFRESH_TOKEN);
 

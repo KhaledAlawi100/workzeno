@@ -3,6 +3,7 @@ package com.workzeno.workzeno.identity.auth;
 
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,5 +21,12 @@ public class ProtectedTestController {
                 "authenticated", authentication.isAuthenticated(),
                 "userId", authentication.getName()
         );
+    }
+
+    // Only users with the ADMIN role can access this endpoint.
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin")
+    public Map<String, String> adminEndpoint() {
+        return Map.of("message", "Admin access granted");
     }
 }

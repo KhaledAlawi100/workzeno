@@ -54,5 +54,8 @@ workzeno:
       secret-base64: ${JWT_SECRET_BASE64}
       issuer: workzeno-api
       access-token-ttl: 15m
-
+  bootstrap-admin:
+    enabled: ${WORKZENO_BOOTSTRAP_ADMIN_ENABLED}
+    email: ${WORKZENO_BOOTSTRAP_ADMIN_EMAIL}
+    password: ${WORKZENO_BOOTSTRAP_ADMIN_PASSWORD}
 

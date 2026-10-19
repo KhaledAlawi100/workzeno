@@ -1,5 +1,5 @@
 
-package com.workzeno.workzeno.identity.security;
+        package com.workzeno.workzeno.identity.security;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -26,11 +26,11 @@ public class AccessTokenService {
     // UTC avoids dependence on the server's configured local time zone.
     private final Clock clock = Clock.systemUTC();
 
-    public String issueAccessToken(UUID userId) {
+    public String issueAccessToken(UUID userId, String role) {
         Instant issuedAt = Instant.now(clock);
         Instant expiresAt = calculateExpiration(issuedAt);
 
-        JwtClaimsSet claims = buildClaims(userId, issuedAt, expiresAt);
+        JwtClaimsSet claims = buildClaims(userId, role, issuedAt, expiresAt);
         JwsHeader header = buildHeader();
 
         String token = encodeToken(header, claims);
@@ -46,6 +46,7 @@ public class AccessTokenService {
 
     private JwtClaimsSet buildClaims(
             UUID userId,
+            String role,
             Instant issuedAt,
             Instant expiresAt
     ) {
@@ -54,6 +55,7 @@ public class AccessTokenService {
         return JwtClaimsSet.builder()
                 .issuer(jwtProperties.getIssuer())
                 .subject(userId.toString())
+                .claim("role", role)
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .build();

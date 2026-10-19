@@ -1,4 +1,3 @@
-
 package com.workzeno.workzeno.identity.auth;
 
 import java.time.Instant;
@@ -109,7 +108,12 @@ public class AuthService {
         String role = extractRole(authentication);
         Instant now = Instant.now();
 
-        String accessToken = accessTokenService.issueAccessToken(userDetails.getUserId());
+        // Include the authenticated user's role in the access token so
+        // Spring Security can apply role-based authorization.
+        String accessToken = accessTokenService.issueAccessToken(
+                userDetails.getUserId(),
+                role
+        );
 
         String refreshToken = refreshTokenService.generateToken();
 
@@ -203,10 +207,12 @@ public class AuthService {
 
         rotateRefreshSession(oldSession, replacement, now);
 
-        // Re-issue access token. AccessTokenService.issueAccessToken(userId)
-        // re-loads the user internally, so a role change since login is picked
-        // up here (the JWT will carry the current role).
-        String newAccessToken = accessTokenService.issueAccessToken(user.getId());
+        // Re-issue the access token using the user's current database role,
+        // so role changes since login are reflected in the new JWT.
+        String newAccessToken = accessTokenService.issueAccessToken(
+                user.getId(),
+                user.getRole().name()
+        );
 
         return buildLoginResponse(
                 user.getEmail(),
@@ -322,6 +328,26 @@ public class AuthService {
                 "Invalid refresh token",
                 "The refresh token is invalid, expired, or revoked"
         );
+    }
+
+    // ============================================================
+    // Logout: revoke the refresh session associated with this token.
+    // ============================================================
+    @Transactional
+    public void logout(RefreshRequest request) {
+        String tokenHash = refreshTokenService.hashToken(
+                request.refreshToken()
+        );
+
+        refreshSessionRepository
+                .findByTokenHashForUpdate(tokenHash)
+                .ifPresent(session -> {
+                    if (session.getRevokedAt() == null) {
+                        session.setRevokedAt(Instant.now());
+                        refreshSessionRepository.save(session);
+                        log.info("Refresh session revoked");
+                    }
+                });
     }
 
     // Locale.ROOT is NOT optional. "I".toLowerCase() under a Turkish locale

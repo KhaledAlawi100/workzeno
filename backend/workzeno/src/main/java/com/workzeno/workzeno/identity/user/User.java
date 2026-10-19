@@ -70,4 +70,10 @@ public class User {
         updatedAt = Instant.now();
     }
 
+    public static User createAdmin(String email, String passwordHash) {
+        User user = new User(email, passwordHash);
+        user.role = UserRole.ADMIN;
+        return user;
+    }
+
 }
