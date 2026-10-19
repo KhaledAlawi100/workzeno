@@ -55,7 +55,6 @@ workzeno:
       issuer: workzeno-api
       access-token-ttl: 15m
   bootstrap-admin:
-    enabled: ${WORKZENO_BOOTSTRAP_ADMIN_ENABLED}
-    email: ${WORKZENO_BOOTSTRAP_ADMIN_EMAIL}
-    password: ${WORKZENO_BOOTSTRAP_ADMIN_PASSWORD}
-
+    enabled: ${WORKZENO_BOOTSTRAP_ADMIN_ENABLED:false}
+    email: ${WORKZENO_BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${WORKZENO_BOOTSTRAP_ADMIN_PASSWORD:}
