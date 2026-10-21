@@ -9,13 +9,15 @@ import {
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { loginUser } from "../authApi";
 import { getApiErrorMessage } from "../../../lib/api";
 import { loginSchema, type LoginFormValues } from "../authSchemas";
+import { useAuth } from "../AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export default function LoginForm() {
   const [successMessage, setSuccessMessage] = useState("");
-
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const {
     register,
     handleSubmit,
@@ -33,20 +35,14 @@ export default function LoginForm() {
     setSuccessMessage("");
 
     try {
-      await loginUser(values);
-
-      // Day 9 will introduce the authentication context and token lifecycle.
-      // Do not persist tokens in localStorage as part of this step.
-      setSuccessMessage(
-        "Login successful. Authentication session handling comes next.",
-      );
+      await login(values);
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       setError("root", {
         message: getApiErrorMessage(error),
       });
     }
   }
-
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
       <Stack spacing={2}>

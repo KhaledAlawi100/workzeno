@@ -1,3 +1,4 @@
+
 package com.workzeno.workzeno.shared.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -11,8 +12,8 @@ public class WebConfig implements WebMvcConfigurer {
     private final String frontendOrigin;
 
     public WebConfig(
-            @Value("${app.cors.allowed-origin}")
-            String frontendOrigin) {
+            @Value("${app.cors.allowed-origin}") String frontendOrigin
+    ) {
         this.frontendOrigin = frontendOrigin;
     }
 
@@ -20,11 +21,13 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(frontendOrigin)
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
-                .allowedHeaders("Content-Type", "Authorization")
-                .allowCredentials(false)
+                .allowedMethods(
+                        "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+                )
+                .allowedHeaders(
+                        "Content-Type", "Authorization", "X-Requested-With"
+                )
+                .allowCredentials(true)
                 .maxAge(3600);
     }
 }
-
-

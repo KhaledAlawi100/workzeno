@@ -4,6 +4,8 @@ import { useState } from "react";
 import { getApiHealth } from "./features/health/healthApi";
 import RegisterPage from "./pages/RegisterPage";
 import LoginPage from "./pages/LoginPage";
+import DashboardPage from "./pages/DashboardPage";
+import ProtectedRoute from "./features/auth/ProtectedRoute";
 
 type CheckState = "idle" | "checking" | "connected" | "failed";
 
@@ -71,6 +73,14 @@ export default function App() {
         <Route path="/" element={<HealthPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
