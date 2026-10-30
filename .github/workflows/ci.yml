@@ -36,6 +36,7 @@ jobs:
       DB_USERNAME: workzeno
       DB_PASSWORD: test-password
       JWT_SECRET_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      CORS_ALLOWED_ORIGIN: http://localhost:5173
 
     steps:
       - name: Check out repository
