@@ -1,6 +1,7 @@
 package com.workzeno.workzeno.shared.exception;
 import com.workzeno.workzeno.shared.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -14,6 +15,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.net.URI;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
@@ -168,6 +170,32 @@ public class GlobalExceptionHandler
         problem.setInstance(URI.create(request.getRequestURI()));
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(
+            ConstraintViolationException exception,
+            HttpServletRequest request
+    ) {
+        String detail = exception.getConstraintViolations()
+                .stream()
+                .map(violation ->
+                        violation.getPropertyPath() + ": "
+                                + violation.getMessage()
+                )
+                .collect(Collectors.joining("; "));
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                detail
+        );
+
+        problemDetail.setTitle("Validation failed");
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(problemDetail);
     }
 }
 

@@ -5,6 +5,10 @@ import com.workzeno.workzeno.shared.api.ApiResponse;
 import com.workzeno.workzeno.shared.api.ApiResponseFactory;
 import com.workzeno.workzeno.shared.exception.ApiException;
 
+import com.workzeno.workzeno.shared.openapi.LoginOperation;
+import com.workzeno.workzeno.shared.openapi.LogoutOperation;
+import com.workzeno.workzeno.shared.openapi.RefreshTokenOperation;
+import com.workzeno.workzeno.shared.openapi.RegisterOperation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +36,7 @@ public class AuthController {
     private final AuthResponseMapper authResponseMapper;
     private final AuthOriginValidator authOriginValidator;
 
+    @RegisterOperation
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(
             @Valid @RequestBody RegisterRequest request,
@@ -54,6 +59,7 @@ public class AuthController {
                 .body(body);
     }
 
+    @LoginOperation
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request,
@@ -87,6 +93,7 @@ public class AuthController {
                 .body(body);
     }
 
+    @RefreshTokenOperation
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(
             @CookieValue(
@@ -141,6 +148,7 @@ public class AuthController {
                 .body(body);
     }
 
+    @LogoutOperation
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
             @CookieValue(

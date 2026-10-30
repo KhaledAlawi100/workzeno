@@ -1,5 +1,13 @@
+springdoc:
+  api-docs:
+    enabled: ${OPENAPI_ENABLED:false}
+  swagger-ui:
+    enabled: ${OPENAPI_ENABLED:false}
+    path: /swagger-ui.html
+  packages-to-scan: com.workzeno.workzeno
 
 spring:
+
   application:
     name: workzeno
 
@@ -38,16 +46,19 @@ management:
 
 app:
   cors:
-    allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
+    allowed-origin: ${CORS_ALLOWED_ORIGIN}
   auth:
     refresh-token:
       ttl: 7d
-      cookie-secure: ${REFRESH_COOKIE_SECURE:false}
+      cookie-secure: ${REFRESH_COOKIE_SECURE:true}
 
 logging:
   level:
-    com.workzeno.workzeno: DEBUG
+    root: INFO
+    com.workzeno.workzeno: INFO
     org.springframework.security: INFO
+    org.hibernate: WARN
+    org.flywaydb: INFO
 
 workzeno:
   security:
@@ -56,6 +67,7 @@ workzeno:
       secret-base64: ${JWT_SECRET_BASE64}
       issuer: workzeno-api
       access-token-ttl: 15m
+
   bootstrap-admin:
     enabled: ${WORKZENO_BOOTSTRAP_ADMIN_ENABLED:false}
     email: ${WORKZENO_BOOTSTRAP_ADMIN_EMAIL:}

@@ -1,8 +1,35 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/workzeno}
     username: ${DB_USERNAME:workzeno}
 
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+        highlight_sql: true
+        use_sql_comments: true
+
 logging:
   level:
-    org.flywaydb: INFO
+    com.workzeno.workzeno: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.orm.jdbc.extract: TRACE
+    org.springframework.data.jpa: DEBUG
+    org.springframework.orm.jpa: DEBUG
+    org.springframework.transaction: TRACE
+    com.zaxxer.hikari: DEBUG
+    org.flywaydb: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.jdbc: DEBUG
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
