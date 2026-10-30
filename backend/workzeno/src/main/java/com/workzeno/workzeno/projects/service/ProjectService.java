@@ -6,6 +6,7 @@ import com.workzeno.workzeno.identity.user.UserRepository;
 import com.workzeno.workzeno.projects.domain.Project;
 import com.workzeno.workzeno.projects.dto.CreateProjectRequest;
 import com.workzeno.workzeno.projects.dto.ProjectResponse;
+import com.workzeno.workzeno.projects.dto.ProjectSummaryResponse;
 import com.workzeno.workzeno.projects.mapper.ProjectMapper;
 import com.workzeno.workzeno.projects.repository.ProjectRepository;
 import com.workzeno.workzeno.shared.exception.ApiException;
@@ -41,11 +42,11 @@ public class ProjectService {
         return projectMapper.toResponse(projectRepository.save(project));
     }
 
-    public Page<ProjectResponse> getMyProjects(Pageable pageable) {
+    public Page<ProjectSummaryResponse> getMyProjects(Pageable pageable) {
         UUID userId = currentUserProvider.getCurrentUserId();
         return projectRepository
                 .findAccessibleProjects(userId, pageable)
-                .map(projectMapper::toResponse);
+                .map(projectMapper::toSummaryResponse);
     }
 
 

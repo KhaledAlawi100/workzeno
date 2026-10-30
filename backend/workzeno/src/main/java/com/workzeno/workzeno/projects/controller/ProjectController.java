@@ -2,6 +2,7 @@ package com.workzeno.workzeno.projects.controller;
 
 import com.workzeno.workzeno.projects.dto.CreateProjectRequest;
 import com.workzeno.workzeno.projects.dto.ProjectResponse;
+import com.workzeno.workzeno.projects.dto.ProjectSummaryResponse;
 import com.workzeno.workzeno.projects.service.ProjectService;
 import com.workzeno.workzeno.shared.api.ApiResponse;
 import com.workzeno.workzeno.shared.api.ApiResponseFactory;
@@ -67,7 +68,7 @@ public class ProjectController {
 
     @GetProjectsOperation
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<ProjectResponse>>> getMyProjects(
+    public ResponseEntity<ApiResponse<Page<ProjectSummaryResponse>>> getMyProjects(
             @RequestParam(defaultValue = "0")
             @Min(value = 0, message = "Page index must not be negative")
             int page,
@@ -86,11 +87,12 @@ public class ProjectController {
         );
 
 
-        Page<ProjectResponse> result = projectService.getMyProjects(
+
+        Page<ProjectSummaryResponse> result = projectService.getMyProjects(
                 PageRequest.of(page, size)
         );
 
-        ApiResponse<Page<ProjectResponse>> body = responseFactory.success(
+        ApiResponse<Page<ProjectSummaryResponse>> body = responseFactory.success(
                 "Projects retrieved successfully",
                 result,
                 httpRequest
