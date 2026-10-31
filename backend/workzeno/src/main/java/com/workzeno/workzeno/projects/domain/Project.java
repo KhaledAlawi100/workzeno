@@ -1,6 +1,7 @@
 package com.workzeno.workzeno.projects.domain;
 
 import com.workzeno.workzeno.identity.user.User;
+import com.workzeno.workzeno.shared.exception.ApiException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,6 +20,7 @@ import jakarta.validation.constraints.Size;
 
 import lombok.Getter;
 import org.hibernate.annotations.UuidGenerator;
+import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -72,6 +74,27 @@ public class Project {
         this.status = ProjectStatus.ACTIVE;
     }
 
+    public void updateDetails(String name, String description) {
+        if (name != null) {
+            if (name.isBlank()) {
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        "Invalid project name",
+                        "Project name must not be blank"
+                );            }
+
+            this.name = normalizeName(name);
+        }
+
+        if (description != null) {
+            this.description = normalizeDescription(description);
+        }
+    }
+
+    public void archive() {
+        this.status = ProjectStatus.ARCHIVED;
+    }
+
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();
@@ -101,6 +124,10 @@ public class Project {
 
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    public void restore() {
+        this.status = ProjectStatus.ACTIVE;
     }
 
 }

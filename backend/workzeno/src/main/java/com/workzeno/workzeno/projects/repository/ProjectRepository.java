@@ -2,6 +2,8 @@
 package com.workzeno.workzeno.projects.repository;
 
 import com.workzeno.workzeno.projects.domain.Project;
+
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -58,5 +60,24 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     Page<Project> findAccessibleProjects(
             @Param("userId") UUID userId,
             Pageable pageable
+    );
+
+    @Query(value = """
+        SELECT p.*
+        FROM projects p
+        WHERE p.id = :projectId
+          AND (
+              p.owner_id = :userId
+              OR EXISTS (
+                  SELECT 1
+                  FROM  project_memberships pm
+                  WHERE pm.project_id = p.id
+                    AND pm.user_id = :userId
+              )
+          )
+        """, nativeQuery = true)
+    Optional<Project> findAccessibleProjectById(
+            @Param("projectId") UUID projectId,
+            @Param("userId") UUID userId
     );
 }
