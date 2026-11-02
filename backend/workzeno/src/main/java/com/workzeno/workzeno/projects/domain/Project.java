@@ -1,6 +1,6 @@
 package com.workzeno.workzeno.projects.domain;
 
-import com.workzeno.workzeno.identity.user.User;
+import com.workzeno.workzeno.identity.user.domain.User;
 import com.workzeno.workzeno.shared.exception.ApiException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

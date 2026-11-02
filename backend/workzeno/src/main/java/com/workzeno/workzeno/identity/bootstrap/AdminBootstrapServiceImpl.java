@@ -1,8 +1,8 @@
 package com.workzeno.workzeno.identity.bootstrap;
 
-import com.workzeno.workzeno.identity.user.User;
-import com.workzeno.workzeno.identity.user.UserRepository;
-import com.workzeno.workzeno.identity.user.UserRole;
+import com.workzeno.workzeno.identity.user.domain.User;
+import com.workzeno.workzeno.identity.user.repository.UserRepository;
+import com.workzeno.workzeno.identity.user.domain.UserRole;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;

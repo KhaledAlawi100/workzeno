@@ -1,5 +1,6 @@
 package com.workzeno.workzeno.identity.auth;
 
+import com.workzeno.workzeno.identity.auth.validation.AuthOriginValidator;
 import com.workzeno.workzeno.shared.exception.ApiException;
 
 

@@ -1,8 +1,8 @@
 package com.workzeno.workzeno;
 
 import com.workzeno.workzeno.identity.bootstrap.BootstrapAdminProperties;
-import com.workzeno.workzeno.identity.security.JwtProperties;
-import com.workzeno.workzeno.identity.security.RefreshTokenProperties;
+import com.workzeno.workzeno.identity.security.properties.JwtProperties;
+import com.workzeno.workzeno.identity.security.properties.RefreshTokenProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

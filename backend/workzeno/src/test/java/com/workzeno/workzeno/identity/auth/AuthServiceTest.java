@@ -1,19 +1,23 @@
-
 package com.workzeno.workzeno.identity.auth;
 
-import com.workzeno.workzeno.identity.auth.dto.LoginRequest;
-import com.workzeno.workzeno.identity.auth.dto.LoginResponse;
-import com.workzeno.workzeno.identity.auth.dto.RegisterRequest;
-import com.workzeno.workzeno.identity.auth.dto.RegisterResponse;
-import com.workzeno.workzeno.identity.security.AccessTokenService;
-import com.workzeno.workzeno.identity.security.JwtProperties;
-import com.workzeno.workzeno.identity.security.RefreshTokenProperties;
-import com.workzeno.workzeno.identity.security.RefreshTokenService;
-import com.workzeno.workzeno.identity.user.User;
-import com.workzeno.workzeno.identity.user.UserRepository;
-import com.workzeno.workzeno.identity.user.UserRole;
-import com.workzeno.workzeno.identity.user.UserStatus;
-import com.workzeno.workzeno.identity.user.WorkzenoUserDetails;
+import com.workzeno.workzeno.identity.auth.domain.RefreshSession;
+import com.workzeno.workzeno.identity.auth.dto.request.LoginRequest;
+import com.workzeno.workzeno.identity.auth.dto.request.RegisterRequest;
+import com.workzeno.workzeno.identity.auth.dto.response.AuthResponse;
+import com.workzeno.workzeno.identity.auth.dto.response.RegisterResponse;
+import com.workzeno.workzeno.identity.auth.exception.DuplicateEmailException;
+import com.workzeno.workzeno.identity.auth.repository.RefreshSessionRepository;
+import com.workzeno.workzeno.identity.auth.service.AuthService;
+import com.workzeno.workzeno.identity.auth.service.result.AuthenticationResult;
+import com.workzeno.workzeno.identity.security.principal.WorkzenoUserDetails;
+import com.workzeno.workzeno.identity.security.properties.JwtProperties;
+import com.workzeno.workzeno.identity.security.properties.RefreshTokenProperties;
+import com.workzeno.workzeno.identity.security.service.AccessTokenService;
+import com.workzeno.workzeno.identity.security.service.RefreshTokenService;
+import com.workzeno.workzeno.identity.user.domain.User;
+import com.workzeno.workzeno.identity.user.domain.UserRole;
+import com.workzeno.workzeno.identity.user.domain.UserStatus;
+import com.workzeno.workzeno.identity.user.repository.UserRepository;
 import com.workzeno.workzeno.shared.exception.ApiException;
 
 import org.junit.jupiter.api.Test;
@@ -78,9 +82,11 @@ class AuthServiceTest {
     private static final String HASH = "$2a$12$exampleHash";
     private static final String TOKEN = "signed.jwt.token";
     private static final String REFRESH_TOKEN = "test-refresh-token";
+
     private static final String REFRESH_TOKEN_HASH =
             "abcdef0123456789abcdef0123456789"
                     + "abcdef0123456789abcdef0123456789";
+
     private static final Duration TOKEN_TTL = Duration.ofMinutes(15);
     private static final UUID USER_ID = UUID.randomUUID();
 
@@ -90,6 +96,7 @@ class AuthServiceTest {
 
     @Test
     void register_shouldNormalizeEmailAndHashPassword() {
+
         RegisterRequest request =
                 new RegisterRequest("  KHALED@EXAMPLE.COM  ", PASSWORD);
 
@@ -118,12 +125,16 @@ class AuthServiceTest {
 
         assertThat(userCaptor.getValue().getEmail()).isEqualTo(EMAIL);
         assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo(HASH);
+
+        assertThat(response.id()).isEqualTo(savedUserId);
         assertThat(response.email()).isEqualTo(EMAIL);
+
         verify(userRepository).existsByEmail(EMAIL);
     }
 
     @Test
     void register_shouldRejectExistingEmail() {
+
         RegisterRequest request = new RegisterRequest(EMAIL, PASSWORD);
 
         when(userRepository.existsByEmail(EMAIL)).thenReturn(true);
@@ -137,10 +148,12 @@ class AuthServiceTest {
 
     @Test
     void register_shouldTranslateDatabaseUniqueViolation() {
+
         RegisterRequest request = new RegisterRequest(EMAIL, PASSWORD);
 
         when(userRepository.existsByEmail(EMAIL)).thenReturn(false);
         when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+
         when(userRepository.saveAndFlush(any(User.class)))
                 .thenThrow(
                         new DataIntegrityViolationException("unique violation")
@@ -156,19 +169,23 @@ class AuthServiceTest {
 
     @Test
     void login_shouldAuthenticateAndIssueBothTokens() {
+
         LoginRequest request =
                 new LoginRequest("  KHALED@EXAMPLE.COM  ", PASSWORD);
 
         when(jwtProperties.getAccessTokenTtl()).thenReturn(TOKEN_TTL);
+
         when(refreshTokenProperties.ttl())
                 .thenReturn(Duration.ofDays(7));
 
         when(refreshTokenService.generateToken())
                 .thenReturn(REFRESH_TOKEN);
+
         when(refreshTokenService.hashToken(REFRESH_TOKEN))
                 .thenReturn(REFRESH_TOKEN_HASH);
 
         WorkzenoUserDetails userDetails = mock(WorkzenoUserDetails.class);
+
         when(userDetails.getUserId()).thenReturn(USER_ID);
         when(userDetails.getUsername()).thenReturn(EMAIL);
 
@@ -182,12 +199,14 @@ class AuthServiceTest {
                 UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
 
-        // Access tokens now include the authenticated user's role.
         when(accessTokenService.issueAccessToken(USER_ID, "USER"))
                 .thenReturn(TOKEN);
 
-        LoginResponse response = authService.login(request);
+        AuthenticationResult result = authService.login(request);
 
+        AuthResponse response = result.response();
+
+        // Verify authentication input.
         ArgumentCaptor<UsernamePasswordAuthenticationToken> authCaptor =
                 ArgumentCaptor.forClass(
                         UsernamePasswordAuthenticationToken.class
@@ -199,11 +218,12 @@ class AuthServiceTest {
         assertThat(authCaptor.getValue().getCredentials()).isEqualTo(PASSWORD);
         assertThat(authCaptor.getValue().isAuthenticated()).isFalse();
 
-        // Verify that the access token is issued with the user's role.
+        // Verify access-token and refresh-token generation.
         verify(accessTokenService).issueAccessToken(USER_ID, "USER");
         verify(refreshTokenService).generateToken();
         verify(refreshTokenService).hashToken(REFRESH_TOKEN);
 
+        // Verify persisted refresh session.
         ArgumentCaptor<RefreshSession> sessionCaptor =
                 ArgumentCaptor.forClass(RefreshSession.class);
 
@@ -214,22 +234,33 @@ class AuthServiceTest {
         assertThat(savedSession.getId()).isNotNull();
         assertThat(savedSession.getUserId()).isEqualTo(USER_ID);
         assertThat(savedSession.getFamilyId()).isNotNull();
+
         assertThat(savedSession.getTokenHash())
                 .isEqualTo(REFRESH_TOKEN_HASH);
+
+        assertThat(savedSession.getTokenHash())
+                .isNotEqualTo(REFRESH_TOKEN);
+
         assertThat(savedSession.getCreatedAt()).isNotNull();
+
         assertThat(savedSession.getExpiresAt())
                 .isAfter(savedSession.getCreatedAt());
 
+        // Verify public response.
+        assertThat(response.userId()).isEqualTo(USER_ID);
         assertThat(response.email()).isEqualTo(EMAIL);
         assertThat(response.role()).isEqualTo("USER");
         assertThat(response.accessToken()).isEqualTo(TOKEN);
-        assertThat(response.refreshToken()).isEqualTo(REFRESH_TOKEN);
         assertThat(response.tokenType()).isEqualTo("Bearer");
         assertThat(response.expiresIn()).isEqualTo(900L);
+
+        // Raw refresh token is returned separately, not in AuthResponse.
+        assertThat(result.refreshToken()).isEqualTo(REFRESH_TOKEN);
     }
 
     @Test
     void login_shouldReturnUnauthorizedForBadCredentials() {
+
         LoginRequest request = new LoginRequest(EMAIL, PASSWORD);
 
         when(authenticationManager.authenticate(any(
@@ -240,6 +271,7 @@ class AuthServiceTest {
                 .isInstanceOf(ApiException.class)
                 .satisfies(exception -> {
                     ApiException apiException = (ApiException) exception;
+
                     assertThat(apiException.getStatus())
                             .isEqualTo(HttpStatus.UNAUTHORIZED);
                 });
@@ -251,9 +283,11 @@ class AuthServiceTest {
 
     @Test
     void login_shouldRejectUnexpectedPrincipal() {
+
         LoginRequest request = new LoginRequest(EMAIL, PASSWORD);
 
         Authentication authentication = mock(Authentication.class);
+
         when(authentication.getPrincipal())
                 .thenReturn("unexpected-principal");
 
@@ -272,6 +306,7 @@ class AuthServiceTest {
 
     @Test
     void login_shouldRejectAuthenticationWithoutRole() {
+
         LoginRequest request = new LoginRequest(EMAIL, PASSWORD);
 
         WorkzenoUserDetails userDetails = mock(WorkzenoUserDetails.class);
@@ -292,13 +327,19 @@ class AuthServiceTest {
         verifyNoInteractions(refreshSessionRepository);
     }
 
+    // ---------------------------------------------------------
+    // Test helper
+    // ---------------------------------------------------------
+
     private Authentication authenticationWith(
             WorkzenoUserDetails userDetails,
             List<SimpleGrantedAuthority> authorities) {
 
         Authentication authentication = mock(Authentication.class);
+
         when(authentication.getPrincipal()).thenReturn(userDetails);
         doReturn(authorities).when(authentication).getAuthorities();
+
         return authentication;
     }
 }

@@ -1,6 +1,6 @@
 package com.workzeno.workzeno.shared.openapi;
 
-import com.workzeno.workzeno.identity.auth.dto.AuthResponse;
+import com.workzeno.workzeno.identity.auth.dto.response.AuthResponse;
 import com.workzeno.workzeno.shared.openapi.schema.ApiErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

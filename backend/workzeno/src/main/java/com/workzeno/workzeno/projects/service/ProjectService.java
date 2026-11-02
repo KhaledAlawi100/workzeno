@@ -1,8 +1,8 @@
 package com.workzeno.workzeno.projects.service;
 
-import com.workzeno.workzeno.identity.security.CurrentUserProvider;
-import com.workzeno.workzeno.identity.user.User;
-import com.workzeno.workzeno.identity.user.UserRepository;
+import com.workzeno.workzeno.identity.security.service.CurrentUserProvider;
+import com.workzeno.workzeno.identity.user.domain.User;
+import com.workzeno.workzeno.identity.user.repository.UserRepository;
 import com.workzeno.workzeno.projects.domain.Project;
 import com.workzeno.workzeno.projects.dto.CreateProjectRequest;
 import com.workzeno.workzeno.projects.dto.ProjectResponse;
@@ -19,8 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.workzeno.workzeno.collaboration.service.ProjectAuthorizationService;
 
-import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -32,6 +32,8 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final ProjectMapper projectMapper;
     private final CurrentUserProvider currentUserProvider;
+    private final ProjectAuthorizationService projectAuthorizationService;
+    private final ProjectAccessService projectAccessService;
 
     @Transactional
     public ProjectResponse createProject(CreateProjectRequest request) {
@@ -55,7 +57,7 @@ public class ProjectService {
     public ProjectResponse getProjectById(UUID projectId) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
-        Project project = loadAccessibleProject(projectId, userId);
+        Project project = projectAccessService.loadAccessibleProject(projectId, userId);;
 
         return projectMapper.toResponse(project);
     }
@@ -64,9 +66,9 @@ public class ProjectService {
     public ProjectResponse updateProject(UUID projectId, UpdateProjectRequest request) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
-        Project project = loadAccessibleProject(projectId, userId);
+        Project project = projectAccessService.loadAccessibleProject(projectId, userId);
 
-        checkProjectOwnership(project, userId);
+        projectAuthorizationService.requireOwnerOrAdmin(project, userId);
 
         project.updateDetails(request.name(), request.description());
 
@@ -77,9 +79,9 @@ public class ProjectService {
     public ProjectResponse archiveProject(UUID projectId) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
-        Project project = loadAccessibleProject(projectId, userId);
+        Project project = projectAccessService.loadAccessibleProject(projectId, userId);
 
-        checkProjectOwnership(project, userId);
+        projectAuthorizationService.requireOwner(project, userId);
 
         project.archive();
 
@@ -90,14 +92,13 @@ public class ProjectService {
     public ProjectResponse restoreProject(UUID projectId) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
-        Project project = loadAccessibleProject(projectId, userId);
-        checkProjectOwnership(project, userId);
+        Project project = projectAccessService.loadAccessibleProject(projectId, userId);
+        projectAuthorizationService.requireOwner(project, userId);
 
         project.restore();
 
         return projectMapper.toResponse(project);
     }
-
 
     private User loadAuthenticatedUser(UUID userId) {
         return userRepository.findById(userId)
@@ -108,23 +109,5 @@ public class ProjectService {
                 ));
     }
 
-    private Project loadAccessibleProject(UUID projectId, UUID userId) {
-        return projectRepository
-                .findAccessibleProjectById(projectId, userId)
-                .orElseThrow(() -> new ApiException(
-                        HttpStatus.NOT_FOUND,
-                        "Project not found",
-                        "Project does not exist or you do not have access to it"
-                ));
-    }
 
-    private void checkProjectOwnership(Project project, UUID userId) {
-        if (!Objects.equals(project.getOwner().getId(), userId)) {
-            throw new ApiException(
-                    HttpStatus.FORBIDDEN,
-                    "Forbidden",
-                    "Only the project owner can perform this action"
-            );
-        }
-    }
 }
