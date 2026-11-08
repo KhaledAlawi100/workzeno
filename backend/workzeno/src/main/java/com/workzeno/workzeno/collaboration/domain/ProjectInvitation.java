@@ -158,6 +158,55 @@ public class ProjectInvitation {
         this.status = ProjectInvitationStatus.ACCEPTED;
     }
 
+    public void decline(User decliningUser, Instant declinedAt) {
+        requirePending();
+
+        if (decliningUser == null || declinedAt == null) {
+            throw new IllegalArgumentException(
+                    "Declining user and decline time are required"
+            );
+        }
+
+        if (!normalizeEmail(decliningUser.getEmail()).equals(inviteeEmail)) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "Invitation email mismatch",
+                    "This invitation belongs to a different email address"
+            );
+        }
+
+        if (!declinedAt.isBefore(expiresAt)) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "Invitation expired",
+                    "This invitation has expired"
+            );
+        }
+
+
+        this.status = ProjectInvitationStatus.DECLINED;
+    }
+
+    public void revoke(User revokingUser, Instant revokedAt) {
+        requirePending();
+
+        if (revokingUser == null || revokedAt == null) {
+            throw new IllegalArgumentException(
+                    "Revoking user and revocation time are required"
+            );
+        }
+
+        if (!revokedAt.isBefore(expiresAt)) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "Invitation expired",
+                    "An expired invitation cannot be revoked"
+            );
+        }
+
+        this.status = ProjectInvitationStatus.REVOKED;
+    }
+
     public void expire(Instant now) {
         requirePending();
 

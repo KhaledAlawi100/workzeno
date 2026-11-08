@@ -138,4 +138,58 @@ public class ProjectInvitationController {
 
         return ResponseEntity.ok(body);
     }
+
+    // =========================================================
+    // DECLINE INVITATION (INTENDED RECIPIENT)
+    // =========================================================
+
+    @PostMapping("/invitations/{invitationId}/decline")
+    public ResponseEntity<ApiResponse<Void>> declineInvitation(
+            @PathVariable UUID invitationId,
+            HttpServletRequest httpRequest
+    ) {
+        log.info(
+                "Invitation decline request received. invitationId={}",
+                invitationId
+        );
+
+        invitationService.declineInvitation(invitationId);
+
+        ApiResponse<Void> body = responseFactory.success(
+                "Invitation declined successfully",
+                null,
+                httpRequest
+        );
+
+        return ResponseEntity.ok(body);
+    }
+
+
+    // =========================================================
+    // REVOKE INVITATION (PROJECT OWNER OR ADMIN)
+    // =========================================================
+
+    @PostMapping("/projects/{projectId}/invitations/{invitationId}/revoke")
+    public ResponseEntity<ApiResponse<Void>> revokeInvitation(
+            @PathVariable UUID projectId,
+            @PathVariable UUID invitationId,
+            HttpServletRequest httpRequest
+    ) {
+        log.info(
+                "Invitation revocation request received. projectId={}, invitationId={}",
+                projectId,
+                invitationId
+        );
+
+        invitationService.revokeInvitation(projectId, invitationId);
+
+        ApiResponse<Void> body = responseFactory.success(
+                "Invitation revoked successfully",
+                null,
+                httpRequest
+        );
+
+        return ResponseEntity.ok(body);
+    }
+
 }

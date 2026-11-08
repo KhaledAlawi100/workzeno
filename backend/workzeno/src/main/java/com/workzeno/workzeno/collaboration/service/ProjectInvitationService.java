@@ -258,6 +258,120 @@ public class ProjectInvitationService {
         return invitationMapper.toAcceptInvitationResponse(invitation);
     }
 
+
+
+    @Transactional
+    public void declineInvitation(UUID invitationId) {
+        UUID currentUserId = currentUserProvider.getCurrentUserId();
+        User decliningUser = loadUser(currentUserId);
+
+        ProjectInvitation invitation = invitationRepository
+                .findByIdForUpdate(invitationId)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "Invitation not found",
+                        "The requested invitation does not exist"
+                ));
+
+        if (invitation.getStatus() != ProjectInvitationStatus.PENDING) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "Invalid invitation state",
+                    "Only pending invitations can be declined"
+            );
+        }
+
+        Instant declinedAt = Instant.now();
+
+        if (!declinedAt.isBefore(invitation.getExpiresAt())) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "Invitation expired",
+                    "This invitation has expired"
+            );
+        }
+
+        if (!normalizeEmail(decliningUser.getEmail())
+                .equals(invitation.getInviteeEmail())) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "Invitation email mismatch",
+                    "Only the intended recipient can decline this invitation"
+            );
+        }
+
+        invitation.decline(decliningUser, declinedAt);
+        invitationRepository.save(invitation);
+    }
+
+
+    @Transactional
+    public void revokeInvitation(UUID projectId, UUID invitationId) {
+        UUID currentUserId = currentUserProvider.getCurrentUserId();
+
+        Project project = projectAccessService.loadAccessibleProject(
+                projectId,
+                currentUserId
+        );
+
+        ensureProjectIsActive(project);
+
+        ProjectInvitation invitation = invitationRepository
+                .findByIdForUpdate(invitationId)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "Invitation not found",
+                        "The requested invitation does not exist"
+                ));
+
+        if (!projectId.equals(invitation.getProject().getId())) {
+            throw new ApiException(
+                    HttpStatus.NOT_FOUND,
+                    "Invitation not found",
+                    "The requested invitation does not belong to this project"
+            );
+        }
+
+        if (invitation.getRole() == null) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "Invalid invitation role",
+                    "The invitation does not contain a valid project role"
+            );
+        }
+
+        // Mirror creation permissions: only the owner can revoke an ADMIN
+        // invitation; an owner or project ADMIN can revoke a MEMBER invitation.
+        if (invitation.getRole() == ProjectMembershipRole.ADMIN) {
+            authorizationService.requireOwner(project, currentUserId);
+        } else {
+            authorizationService.requireOwnerOrAdmin(project, currentUserId);
+        }
+
+        if (invitation.getStatus() != ProjectInvitationStatus.PENDING) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "Invalid invitation state",
+                    "Only pending invitations can be revoked"
+            );
+        }
+
+        Instant revokedAt = Instant.now();
+
+        if (!revokedAt.isBefore(invitation.getExpiresAt())) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "Invitation expired",
+                    "An expired invitation cannot be revoked"
+            );
+        }
+
+        User revokingUser = loadUser(currentUserId);
+        invitation.revoke(revokingUser, revokedAt);
+        invitationRepository.save(invitation);
+    }
+
+
     private void authorizeInvitation(
             Project project,
             UUID inviterId,
