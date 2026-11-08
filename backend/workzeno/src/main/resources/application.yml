@@ -45,6 +45,9 @@ management:
           include: readinessState,db
 
 app:
+  collaboration:
+    invitation:
+      ttl: 7d
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN}
   auth:

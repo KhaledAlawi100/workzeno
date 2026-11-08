@@ -91,7 +91,7 @@ public class AuthService {
         // Only its SHA-256 hash is persisted
         RefreshSession session = newRefreshSession(
                 userDetails.getUserId(),
-                UUID.randomUUID(), // One new family per login/device.
+                UUID.randomUUID(),  // One new family per login/device.
                 refreshToken,
                 now
         );

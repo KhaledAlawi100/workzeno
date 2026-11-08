@@ -28,10 +28,13 @@ public class AccessTokenService {
     private final Clock clock = Clock.systemUTC();
 
     public String issueAccessToken(UUID userId, String role) {
+
         Instant issuedAt = Instant.now(clock);
+
         Instant expiresAt = calculateExpiration(issuedAt);
 
         JwtClaimsSet claims = buildClaims(userId, role, issuedAt, expiresAt);
+
         JwsHeader header = buildHeader();
 
         String token = encodeToken(header, claims);
