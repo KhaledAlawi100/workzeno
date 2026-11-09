@@ -2,7 +2,9 @@ package com.workzeno.workzeno.collaboration.service;
 import com.workzeno.workzeno.collaboration.domain.ProjectMembership;
 import com.workzeno.workzeno.collaboration.domain.ProjectMembershipRole;
 import com.workzeno.workzeno.collaboration.dto.AddProjectMemberRequest;
+import com.workzeno.workzeno.collaboration.dto.ProjectMemberResponse;
 import com.workzeno.workzeno.collaboration.dto.UpdateProjectMemberRoleRequest;
+import com.workzeno.workzeno.collaboration.mapper.ProjectMembershipMapper;
 import com.workzeno.workzeno.collaboration.repository.ProjectMembershipRepository;
 import com.workzeno.workzeno.identity.security.service.CurrentUserProvider;
 import com.workzeno.workzeno.identity.user.domain.User;
@@ -12,6 +14,8 @@ import com.workzeno.workzeno.projects.domain.ProjectStatus;
 import com.workzeno.workzeno.projects.service.ProjectAccessService;
 import com.workzeno.workzeno.shared.exception.ApiException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +35,7 @@ public class ProjectMembershipService {
     private final CurrentUserProvider currentUserProvider;
     private final ProjectAuthorizationService authorizationService;
     private final ProjectAccessService projectAccessService;
+    private final ProjectMembershipMapper membershipMapper;
 
     @Transactional
     public void addMember(UUID projectId, AddProjectMemberRequest request) {
@@ -109,6 +114,21 @@ public class ProjectMembershipService {
         membershipRepository.delete(membership);
     }
 
+    public Page<ProjectMemberResponse> getProjectMembers(
+            UUID projectId,
+            Pageable pageable
+    ) {
+        UUID currentUserId = getCurrentUserId();
+
+        projectAccessService.loadAccessibleProject(
+                projectId,
+                currentUserId
+        );
+
+        return membershipRepository
+                .findAllByProjectIdOrderByJoinedAtDesc(projectId, pageable)
+                .map(membershipMapper::toProjectMemberResponse);
+    }
     // --------------------------------------------------
     // Shared helper methods
     // --------------------------------------------------
@@ -174,14 +194,13 @@ public class ProjectMembershipService {
             UUID targetUserId
     ) {
         return membershipRepository
-                .findByProjectIdAndUserId(projectId, targetUserId)
+                .findByProjectIdAndUserIdForUpdate(projectId, targetUserId)
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
                         "Membership not found",
                         "The requested user is not a member of this project"
                 ));
     }
-
     private void ensureAdminCanOnlyBeRemovedByOwner(
             Project project,
             ProjectMembership membership,
