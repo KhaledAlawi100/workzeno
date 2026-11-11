@@ -1,67 +1,43 @@
-import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
-import { Box, Button, Stack, Typography } from "@mui/material";
-import { useState } from "react";
-import { getApiHealth } from "./features/health/healthApi";
-import RegisterPage from "./pages/RegisterPage";
-import LoginPage from "./pages/LoginPage";
-import DashboardPage from "./pages/DashboardPage";
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Box, CircularProgress, Typography } from "@mui/material";
+
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 
-type CheckState = "idle" | "checking" | "connected" | "failed";
+// Lazy-loaded pages
+const HealthPage = lazy(() => import("./pages/HealthPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
-function HealthPage() {
-  const [state, setState] = useState<CheckState>("idle");
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 
-  async function checkBackend() {
-    setState("checking");
+const ProjectsPage = lazy(
+  () => import("./features/projects/pages/ProjectsPage"),
+);
 
-    try {
-      const result = await getApiHealth();
+const ProjectDetailsPage = lazy(
+  () => import("./features/projects/pages/ProjectDetailsPage"),
+);
 
-      if (result.status !== "UP") {
-        throw new Error("Backend health check failed");
-      }
 
-      setState("connected");
-    } catch (error) {
-      console.error("Error checking backend health:", error);
-      setState("failed");
-    }
-  }
 
+function PageLoadingFallback() {
   return (
-    <Box sx={{ p: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Workzeno
-      </Typography>
-
-      <Typography sx={{ mb: 2 }}>Backend connectivity check</Typography>
-
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Button
-          variant="contained"
-          onClick={checkBackend}
-          disabled={state === "checking"}
-        >
-          {state === "checking" ? "Checking..." : "Check Backend Health"}
-        </Button>
-
-        <Button component={Link} to="/register">
-          Register
-        </Button>
-
-        <Button component={Link} to="/login">
-          Sign in
-        </Button>
-      </Stack>
-
-      <Typography role="status" aria-live="polite">
-        {state === "idle" && "Not checked yet"}
-        {state === "checking" && "Contacting backend..."}
-        {state === "connected" && "Backend connected"}
-        {state === "failed" &&
-          "Could not reach the backend. Check that it is running."}
-      </Typography>
+    <Box
+      role="status"
+      aria-label="Loading page"
+      sx={{
+        minHeight: "50vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 2,
+      }}
+    >
+      <CircularProgress />
+      <Typography color="text.secondary">Loading page...</Typography>
     </Box>
   );
 }
@@ -69,19 +45,44 @@ function HealthPage() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HealthPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+      <Suspense fallback={<PageLoadingFallback />}>
+        <Routes>
+          <Route path="/" element={<HealthPage />} />
+
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<LoginPage />} />
+
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/projects/:projectId"
+            element={
+              <ProtectedRoute>
+                <ProjectDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

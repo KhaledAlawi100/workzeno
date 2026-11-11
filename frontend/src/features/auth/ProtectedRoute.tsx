@@ -1,10 +1,16 @@
 import type { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { Box, CircularProgress } from "@mui/material";
+
 import { useAuth } from "./AuthContext";
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { status, isAuthenticated } = useAuth();
+  const location = useLocation();
 
   if (status === "loading") {
     return (
@@ -16,13 +22,13 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
           minHeight: "100vh",
         }}
       >
-        <CircularProgress />
+        <CircularProgress aria-label="Checking authentication" size={36} />
       </Box>
     );
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return <>{children}</>;

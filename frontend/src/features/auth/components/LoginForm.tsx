@@ -12,11 +12,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { getApiErrorMessage } from "../../../lib/api";
 import { loginSchema, type LoginFormValues } from "../authSchemas";
 import { useAuth } from "../AuthContext";
-import { useNavigate } from "react-router-dom";
-
+import { useLocation, useNavigate } from "react-router-dom";
 export default function LoginForm() {
   const [successMessage, setSuccessMessage] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from as
+    | {
+        pathname?: string;
+        search?: string;
+        hash?: string;
+      }
+    | undefined;
+
   const { login } = useAuth();
   const {
     register,
@@ -36,7 +45,12 @@ export default function LoginForm() {
 
     try {
       await login(values);
-      navigate("/dashboard", { replace: true });
+
+      const destination = from
+        ? `${from.pathname ?? "/"}${from.search ?? ""}${from.hash ?? ""}`
+        : "/dashboard";
+
+      navigate(destination, { replace: true });
     } catch (error) {
       setError("root", {
         message: getApiErrorMessage(error),

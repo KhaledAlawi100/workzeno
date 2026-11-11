@@ -17,10 +17,10 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
+  userId: string;
   email: string;
   role: string;
   accessToken: string;
-  refreshToken: string;
   tokenType: string;
   expiresIn: number;
 }
