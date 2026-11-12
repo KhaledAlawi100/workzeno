@@ -17,7 +17,11 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Operation(
         summary = "Get projects",
-        description = "Returns a paginated list of projects accessible to the authenticated user."
+        description = """
+                Returns a paginated list of projects accessible to the authenticated user.
+                An optional search term filters projects by name or description.
+                Search is case-insensitive and supports partial matches.
+                """
 )
 @ApiResponses({
         @ApiResponse(
@@ -30,7 +34,7 @@ import java.lang.annotation.Target;
         ),
         @ApiResponse(
                 responseCode = "400",
-                description = "Invalid pagination parameters",
+                description = "Invalid pagination parameters or search term longer than 120 characters",
                 content = @Content(
                         mediaType = "application/problem+json",
                         schema = @Schema(implementation = ApiErrorResponse.class)

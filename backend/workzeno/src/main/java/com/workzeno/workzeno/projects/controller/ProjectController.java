@@ -12,6 +12,7 @@ import com.workzeno.workzeno.shared.openapi.CreateProjectOperation;
 import com.workzeno.workzeno.shared.openapi.GetProjectsOperation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -74,12 +75,16 @@ public class ProjectController {
             @Min(value = 1, message = "Page size must be at least 1")
             @Max(value = 100, message = "Page size must not exceed 100")
             int size,
+            @RequestParam(required = false)
+            @Size(max = 120, message = "Search term must not exceed 120 characters")
+            String search,
 
             HttpServletRequest httpRequest
     ) {
         log.info("Project list request received. page={}, size={}", page, size);
 
         Page<ProjectSummaryResponse> result = projectService.getMyProjects(
+                search,
                 PageRequest.of(page, size)
         );
 

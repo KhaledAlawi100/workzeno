@@ -17,7 +17,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Operation(
         summary = "Create project",
-        description = "Creates a new project owned by the authenticated user."
+        description = "Creates a new " +
+                "project owned by the authenticated user."
 )
 @ApiResponses({
         @ApiResponse(

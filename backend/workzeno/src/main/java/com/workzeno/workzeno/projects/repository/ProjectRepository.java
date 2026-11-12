@@ -16,32 +16,49 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     @Query(
             value = """
-            SELECT p.*
-            FROM projects p
-            WHERE p.owner_id = :userId
-               OR EXISTS (
-                   SELECT 1
-                   FROM project_memberships pm
-                   WHERE pm.project_id = p.id
-                     AND pm.user_id = :userId
-               )
-            ORDER BY p.created_at DESC, p.id DESC
-            """,
+        SELECT p.*
+        FROM projects p
+        WHERE (
+            p.owner_id = :userId
+            OR EXISTS (
+                SELECT 1
+                FROM project_memberships pm
+                WHERE pm.project_id = p.id
+                  AND pm.user_id = :userId
+            )
+        )
+        AND (
+            :search = ''
+            OR LOWER(p.name) LIKE CONCAT('%', LOWER(:search), '%')
+            OR LOWER(COALESCE(p.description, ''))
+                LIKE CONCAT('%', LOWER(:search), '%')
+        )
+        ORDER BY p.created_at DESC, p.id DESC
+        """,
             countQuery = """
-            SELECT COUNT(*)
-            FROM projects p
-            WHERE p.owner_id = :userId
-               OR EXISTS (
-                   SELECT 1
-                   FROM project_memberships pm
-                   WHERE pm.project_id = p.id
-                     AND pm.user_id = :userId
-               )
-            """,
+        SELECT COUNT(*)
+        FROM projects p
+        WHERE (
+            p.owner_id = :userId
+            OR EXISTS (
+                SELECT 1
+                FROM project_memberships pm
+                WHERE pm.project_id = p.id
+                  AND pm.user_id = :userId
+            )
+        )
+        AND (
+            :search = ''
+            OR LOWER(p.name) LIKE CONCAT('%', LOWER(:search), '%')
+            OR LOWER(COALESCE(p.description, ''))
+                LIKE CONCAT('%', LOWER(:search), '%')
+        )
+        """,
             nativeQuery = true
     )
     Page<Project> findAccessibleProjects(
             @Param("userId") UUID userId,
+            @Param("search") String search,
             Pageable pageable
     );
 

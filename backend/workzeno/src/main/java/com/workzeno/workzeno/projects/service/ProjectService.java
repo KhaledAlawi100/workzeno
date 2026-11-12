@@ -11,6 +11,7 @@ import com.workzeno.workzeno.projects.dto.UpdateProjectRequest;
 import com.workzeno.workzeno.projects.mapper.ProjectMapper;
 import com.workzeno.workzeno.projects.repository.ProjectRepository;
 import com.workzeno.workzeno.shared.exception.ApiException;
+import com.workzeno.workzeno.collaboration.membership.api.ProjectAuthorization;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,7 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.workzeno.workzeno.collaboration.service.ProjectAuthorizationService;
+
 
 import java.util.UUID;
 
@@ -32,8 +33,8 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final ProjectMapper projectMapper;
     private final CurrentUserProvider currentUserProvider;
-    private final ProjectAuthorizationService projectAuthorizationService;
     private final ProjectAccessService projectAccessService;
+    private final ProjectAuthorization projectAuthorizationService;
 
     @Transactional
     public ProjectResponse createProject(CreateProjectRequest request) {
@@ -46,11 +47,15 @@ public class ProjectService {
         return projectMapper.toResponse(projectRepository.save(project));
     }
 
-    public Page<ProjectSummaryResponse> getMyProjects(Pageable pageable) {
+    public Page<ProjectSummaryResponse> getMyProjects(String search,Pageable pageable) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
+        String normalizedSearch = search == null
+                ? ""
+                : search.trim();
+
         return projectRepository
-                .findAccessibleProjects(userId, pageable)
+                .findAccessibleProjects(userId, normalizedSearch, pageable)
                 .map(projectMapper::toSummaryResponse);
     }
 
