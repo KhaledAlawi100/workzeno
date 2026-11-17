@@ -1,10 +1,7 @@
 package com.workzeno.workzeno.collaboration.membership.service;
 import com.workzeno.workzeno.collaboration.membership.domain.ProjectMembership;
 import com.workzeno.workzeno.collaboration.membership.domain.ProjectMembershipRole;
-import com.workzeno.workzeno.collaboration.membership.dto.AddProjectMemberRequest;
-import com.workzeno.workzeno.collaboration.membership.dto.ProjectMemberResponse;
-import com.workzeno.workzeno.collaboration.membership.dto.ProjectTeamResponse;
-import com.workzeno.workzeno.collaboration.membership.dto.UpdateProjectMemberRoleRequest;
+import com.workzeno.workzeno.collaboration.membership.dto.*;
 import com.workzeno.workzeno.collaboration.membership.mapper.ProjectMembershipMapper;
 import com.workzeno.workzeno.collaboration.membership.repository.ProjectMembershipRepository;
 import com.workzeno.workzeno.identity.security.service.CurrentUserProvider;
@@ -222,6 +219,26 @@ public class ProjectMembershipService implements MembershipManagement {
         }
     }
 
+    public MyProjectMembershipResponse getMyProjectMembership(
+            UUID projectId
+    ) {
+        UUID currentUserId = getCurrentUserId();
+
+        projectAccessService.loadAccessibleProject(
+                projectId,
+                currentUserId
+        );
+
+        ProjectMembershipRole role = membershipRepository
+                .findRoleByProjectIdAndUserId(projectId, currentUserId)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "Membership not found",
+                        "Your project membership could not be found"
+                ));
+
+        return new MyProjectMembershipResponse(projectId, role);
+    }
 
     // --------------------------------------------------
     // Shared helper methods

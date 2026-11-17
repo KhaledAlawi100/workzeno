@@ -29,6 +29,7 @@ public interface ProjectInvitationMapper {
     // CREATE INVITATION
     // =========================================================
 
+    @Mapping(target = "invitationId", source = "id")
     CreateInvitationResponse toCreateInvitationResponse(
             ProjectInvitation invitation
     );

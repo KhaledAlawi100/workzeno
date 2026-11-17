@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+
+
 @Component
 public class AuthOriginValidator {
 
@@ -21,7 +23,7 @@ public class AuthOriginValidator {
     public void validate(HttpServletRequest request) {
         String origin = request.getHeader("Origin");
 
-        if (origin == null || !allowedOrigin.equals(origin)) {
+        if (!allowedOrigin.equals(origin)) {
             throw new ApiException(
                     HttpStatus.FORBIDDEN,
                     "Forbidden",

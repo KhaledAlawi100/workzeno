@@ -1,155 +1,73 @@
-import { useState } from "react";
-
 import {
   Alert,
   Box,
   Button,
   Container,
-  Grid,
   Pagination,
-  Skeleton,
   Snackbar,
   Stack,
   Typography,
 } from "@mui/material";
 
-import AddIcon from "@mui/icons-material/Add";
-
 import ProjectsList from "../components/ProjectsList";
 import ProjectFormDialog from "../components/ProjectFormDialog";
 
-import { useProjects } from "../hooks/useProjects";
-import { useCreateProject } from "../hooks/useCreateProject";
+import ProjectsPageHeader from "../components/page/ProjectsPageHeader";
+import ProjectsSearch from "../components/page/ProjectsSearch";
+import ProjectsLoadingState from "../components/page/ProjectsLoadingState";
 
-import { getApiErrorMessage } from "../../../lib/api";
+import { useProjectsPage } from "../hooks/useProjectsPage";
 
-import type { CreateProjectFormValues } from "../projectSchemas";
-
-const PAGE_SIZE = 6;
-
-function ProjectsLoadingState() {
-  return (
-    <Grid container spacing={3}>
-      {Array.from({ length: PAGE_SIZE }).map((_, index) => (
-        <Grid key={index} size={{ xs: 12, sm: 6, md: 4 }}>
-          <Stack spacing={2}>
-            <Skeleton variant="rounded" height={150} />
-            <Skeleton variant="text" width="70%" height={30} />
-            <Skeleton variant="text" width="100%" />
-            <Skeleton variant="text" width="45%" />
-          </Stack>
-        </Grid>
-      ))}
-    </Grid>
-  );
-}
 
 export default function ProjectsPage() {
-  const [page, setPage] = useState(0);
+  const {
+    searchInput,
+    debouncedSearch,
+    dialogOpen,
+    notification,
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+    data,
+    isPending,
+    isError,
+    error,
+    refetch,
+    isFetching,
 
-  const [notification, setNotification] = useState<{
-    open: boolean;
-    severity: "success" | "error";
-    message: string;
-  }>({
-    open: false,
-    severity: "success",
-    message: "",
-  });
-
-  const { data, isPending, isError, error, refetch, isFetching } = useProjects({
-    page,
-    size: PAGE_SIZE,
-  });
-
-  const createProjectMutation = useCreateProject();
-
-  function handleOpenDialog() {
-    setDialogOpen(true);
-  }
-
-  function handleCloseDialog() {
-    setDialogOpen(false);
-  }
-
-  async function handleCreateProject(
-    values: CreateProjectFormValues,
-  ): Promise<void> {
-    try {
-     
-      await createProjectMutation.mutateAsync({
-        name: values.name,
-        description: values.description || null,
-      });
-
-      // Return to the first page after creating a project.
-      setPage(0);
-
-      setDialogOpen(false);
-
-      setNotification({
-        open: true,
-        severity: "success",
-        message: "Project created successfully.",
-      });
-    } catch (error) {
-      setNotification({
-        open: true,
-        severity: "error",
-        message: getApiErrorMessage(error),
-      });
-    }
-  }
-
-  function handleCloseNotification() {
-    setNotification((previous) => ({
-      ...previous,
-      open: false,
-    }));
-  }
+    handleSearchChange,
+    handleClearSearch,
+    handlePageChange,
+    handleOpenDialog,
+    handleCloseDialog,
+    handleCreateProject,
+    handleCloseNotification,
+  } = useProjectsPage();
 
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
       <Stack spacing={3}>
-        {/* Page header */}
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          sx={{
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", sm: "center" },
-          }}
-        >
-          <Stack spacing={1}>
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-              Projects
-            </Typography>
+        <ProjectsPageHeader onCreateProject={handleOpenDialog} />
 
-            <Typography color="text.secondary">
-              View and manage your projects.
-            </Typography>
-          </Stack>
+        <ProjectsSearch
+          value={searchInput}
+          onChange={handleSearchChange}
+          onClear={handleClearSearch}
+        />
 
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleOpenDialog}
-          >
-            New project
-          </Button>
-        </Stack>
-
-        {/* Loading state */}
+        {/* Initial loading state */}
         {isPending && <ProjectsLoadingState />}
 
-        {/* Page loading error */}
+        {/* Projects loading error */}
         {isError && (
           <Alert
             severity="error"
             action={
-              <Button color="inherit" size="small" onClick={() => refetch()}>
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  void refetch();
+                }}
+              >
                 Retry
               </Button>
             }
@@ -160,7 +78,7 @@ export default function ProjectsPage() {
           </Alert>
         )}
 
-        {/* Projects list */}
+        {/* Successfully loaded projects */}
         {data && !isError && (
           <Stack spacing={3}>
             {isFetching && (
@@ -169,8 +87,12 @@ export default function ProjectsPage() {
               </Typography>
             )}
 
-            <ProjectsList projects={data.content} />
+            <ProjectsList
+              projects={data.content}
+              searchTerm={debouncedSearch}
+            />
 
+            {/* Server-side pagination */}
             {data.totalPages > 1 && (
               <Box
                 sx={{
@@ -181,9 +103,9 @@ export default function ProjectsPage() {
               >
                 <Pagination
                   count={data.totalPages}
-                  page={page + 1}
+                  page={data.totalPages > 0 ? undefined : 1}
                   onChange={(_, selectedPage) => {
-                    setPage(selectedPage - 1);
+                    handlePageChange(selectedPage);
                   }}
                   color="primary"
                   shape="rounded"
@@ -206,7 +128,7 @@ export default function ProjectsPage() {
         )}
       </Stack>
 
-      {/* Create project modal */}
+      {/* Create project dialog */}
       <ProjectFormDialog
         open={dialogOpen}
         mode="create"
@@ -214,7 +136,7 @@ export default function ProjectsPage() {
         onSubmit={handleCreateProject}
       />
 
-      {/* Mutation success/error notification */}
+      {/* Create success/error notification */}
       <Snackbar
         open={notification.open}
         autoHideDuration={5000}

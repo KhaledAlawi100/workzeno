@@ -11,9 +11,9 @@ import {
   loginUser,
   logoutUser,
   refreshAccessToken,
-} from "./authApi";
+} from "./api/authApi";
 
-import type { UserProfile } from "./authApi";
+import type { UserProfile } from "./api/authApi";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus("unauthenticated");
     });
 
+    // Cleanup function to remove the onRefreshFailure callback when the component unmounts.
     return () => {
       setOnRefreshFailure(null);
     };

@@ -11,6 +11,7 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,9 +34,8 @@ public class SecurityConfig {
                 // so browser preflight requests can be handled correctly.
                 .cors(Customizer.withDefaults())
 
-                // This API authenticates using bearer tokens, not cookies.
-                // Revisit this setting if authentication moves to cookies.
-                .csrf(csrf -> csrf.disable())
+
+                .csrf(AbstractHttpConfigurer::disable)
 
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
@@ -51,14 +51,11 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                        // Only users with the ADMIN role can access admin endpoints.
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 
-                        // USER and ADMIN roles can access user endpoints.
                         .requestMatchers("/api/v1/user/**")
                         .hasAnyRole("USER", "ADMIN")
 
-                        // All other API endpoints require authentication.
                         .requestMatchers("/api/v1/**").authenticated()
 
                         .anyRequest().authenticated()

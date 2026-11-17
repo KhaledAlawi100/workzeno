@@ -44,7 +44,6 @@ public class ProjectInvitationService {
     private static final String PENDING_INVITATION_CONSTRAINT =
             "uq_project_invitations_pending_project_email";
 
-
     private final ProjectInvitationRepository invitationRepository;
     private final MembershipManagement membershipManagement;
     private final UserRepository userRepository;
@@ -213,9 +212,6 @@ public class ProjectInvitationService {
             );
         }
 
-        // Verify the recipient before processing expiration.
-        // This prevents another user from checking the state
-        // of an invitation that belongs to someone else.
         if (!normalizeEmail(acceptingUser.getEmail())
                 .equals(invitation.getInviteeEmail())) {
 
@@ -358,9 +354,7 @@ public class ProjectInvitationService {
             );
         }
 
-        // Mirror creation permissions:
-        // only the owner can revoke an ADMIN invitation;
-        // an owner or project ADMIN can revoke a MEMBER invitation.
+
         if (invitation.getRole() == ProjectMembershipRole.ADMIN) {
             authorizationService.requireOwner(project, currentUserId);
         } else {
@@ -399,29 +393,24 @@ public class ProjectInvitationService {
             UUID projectId,
             Pageable pageable
     ) {
-        // Identify the currently authenticated user.
         UUID currentUserId = currentUserProvider.getCurrentUserId();
 
-        // Load the project and verify that the user can access it.
         Project project = projectAccessService.loadAccessibleProject(
                 projectId,
                 currentUserId
         );
 
-        // Only the project owner or an admin can manage invitations.
         authorizationService.requireOwnerOrAdmin(
                 project,
                 currentUserId
         );
 
-        // Update expired invitations before retrieving the page.
-        // This keeps invitation statuses consistent with their expiration dates.
+
         expireProjectInvitations(
                 projectId,
                 Instant.now()
         );
 
-        // Retrieve invitations belonging to this project.
         Page<ProjectInvitation> invitations =
                 invitationRepository
                         .findAllByProject_IdOrderByCreatedAtDesc(
@@ -429,7 +418,6 @@ public class ProjectInvitationService {
                                 pageable
                         );
 
-        // Convert each entity into its compact summary representation.
         return invitations.map(
                 invitationMapper::toProjectInvitationSummaryResponse
         );
@@ -471,35 +459,12 @@ public class ProjectInvitationService {
 
 
 
-
-
-
-    /**
-     * Expires overdue pending invitations for one specific
-     * project and invitee email.
-     *
-     * Why do we need this?
-     *
-     * An invitation can be expired according to expiresAt
-     * while its database status is still PENDING.
-     *
-     * The database has a unique constraint that prevents
-     * multiple PENDING invitations for the same project/email.
-     *
-     * Therefore, before creating another invitation, we must
-     * change the old invitation's status to EXPIRED.
-     *
-     * @param projectId the project receiving the invitation
-     * @param inviteeEmail normalized email of the invitee
-     * @param now current time used for the expiration check
-     */
     private void expireExpiredInvitationForProjectAndEmail(
             UUID projectId,
             String inviteeEmail,
             Instant now
     ) {
-        // Find only expired PENDING invitations for this
-        // particular project and email address.
+
         List<ProjectInvitation> expiredInvitations =
                 invitationRepository
                         .findAllByProject_IdAndInviteeEmailAndStatusAndExpiresAtLessThanEqual(
@@ -509,29 +474,22 @@ public class ProjectInvitationService {
                                 now
                         );
 
-        // Nothing needs to be changed when no expired
-        // pending invitation exists.
+
         if (expiredInvitations.isEmpty()) {
             return;
         }
 
-        // Change each invitation from PENDING to EXPIRED.
         expiredInvitations.forEach(
                 invitation -> invitation.expire(now)
         );
 
-        // Flush the updates to the database before the
-        // duplicate check and creation of the new invitation.
-        //
-        // This releases the old PENDING status from the
-        // partial unique index.
+
         invitationRepository.saveAllAndFlush(expiredInvitations);
     }
 
     // =========================================================
     // EXPIRATION HELPERS
     // =========================================================
-
 
 
     /**
@@ -582,20 +540,6 @@ public class ProjectInvitationService {
     }
 
 
-    /**
-     * Checks whether one invitation has expired.
-     *
-     * If it has expired:
-     * 1. Changes its status from PENDING to EXPIRED.
-     * 2. Saves the updated invitation.
-     * 3. Throws InvitationExpiredException to stop the operation.
-     *
-     * The calling service method uses:
-     * @Transactional(noRollbackFor = InvitationExpiredException.class)
-     *
-     * This allows the expiration update to be committed
-     * even though an exception is returned to the caller.
-     */
     private void expireInvitationIfNecessary(
             ProjectInvitation invitation,
             Instant now

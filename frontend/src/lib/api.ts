@@ -54,8 +54,10 @@ interface RefreshResponse {
 let refreshPromise: Promise<string> | null = null;
 
 export async function refreshAccessToken(): Promise<string> {
+  
   if (!refreshPromise) {
-    refreshPromise = refreshClient
+    refreshPromise =
+     refreshClient
       .post<RefreshResponse>("/auth/refresh", {})
       .then((response) => response.data.data.accessToken)
       .finally(() => {
@@ -66,17 +68,26 @@ export async function refreshAccessToken(): Promise<string> {
   return refreshPromise;
 }
 
+// Axios request config type with an optional _retry property to track if a request has already been retried.
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
+// Interceptor to handle automatic token refresh on 401 Unauthorized responses.
 apiClient.interceptors.response.use(
-  (response) => response,
+  // Return the response directly if successful.
+  (response) => response
+  ,
+  // Handle 401 Unauthorized responses by attempting to refresh the access token.
   async (error: unknown) => {
+
+    // If the error is not an Axios error or does not have a config, reject it.
     if (!axios.isAxiosError(error) || !error.config) {
       return Promise.reject(error);
     }
 
+
+    
     const originalRequest = error.config as RetryableRequestConfig;
     const requestUrl = originalRequest.url ?? "";
 
@@ -86,6 +97,7 @@ apiClient.interceptors.response.use(
       requestUrl.includes("/auth/refresh") ||
       requestUrl.includes("/auth/logout");
 
+    // If the request is for an authentication endpoint, do not attempt to refresh the token.
     if (
       error.response?.status !== 401 ||
       originalRequest._retry ||
@@ -94,6 +106,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    
     originalRequest._retry = true;
 
     try {
@@ -119,6 +132,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   const response = await apiClient.get<T>(path);
   return response.data;
 }
+
 
 export interface ApiResponse<T> {
   success: boolean;

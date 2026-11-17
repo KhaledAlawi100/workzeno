@@ -1,8 +1,9 @@
 import { apiClient, type ApiResponse } from "../../../lib/api";
 
+import type { Page } from "../../../types/page.types";
+
 import type {
   CreateProjectRequest,
-  Page,
   Project,
   ProjectSummary,
   UpdateProjectRequest,
@@ -11,6 +12,7 @@ import type {
 export async function getProjects(
   page = 0,
   size = 20,
+  search = "",
   signal?: AbortSignal,
 ): Promise<Page<ProjectSummary>> {
   const response = await apiClient.get<ApiResponse<Page<ProjectSummary>>>(
@@ -19,6 +21,7 @@ export async function getProjects(
       params: {
         page,
         size,
+        ...(search.trim() ? { search: search.trim() } : {}),
       },
       signal,
     },
@@ -37,7 +40,6 @@ export async function createProject(
 
   return response.data.data;
 }
-
 
 export async function getProjectById(
   projectId: string,
@@ -65,7 +67,6 @@ export async function updateProject(
   return response.data.data;
 }
 
-
 export async function archiveProject(projectId: string): Promise<Project> {
   const response = await apiClient.patch<ApiResponse<Project>>(
     `/projects/${encodeURIComponent(projectId)}/archive`,
@@ -73,7 +74,6 @@ export async function archiveProject(projectId: string): Promise<Project> {
 
   return response.data.data;
 }
-
 
 export async function restoreProject(projectId: string): Promise<Project> {
   const response = await apiClient.patch<ApiResponse<Project>>(

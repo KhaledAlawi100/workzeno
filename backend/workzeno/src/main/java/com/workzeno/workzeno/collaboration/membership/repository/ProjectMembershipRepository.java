@@ -2,6 +2,7 @@ package com.workzeno.workzeno.collaboration.membership.repository;
 
 import com.workzeno.workzeno.collaboration.membership.domain.ProjectMembership;
 
+import com.workzeno.workzeno.collaboration.membership.domain.ProjectMembershipRole;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +42,19 @@ public interface ProjectMembershipRepository
     );
 
     boolean existsByProjectIdAndUserId(UUID projectId, UUID userId);
+
+
+    @Query("""
+    SELECT membership.role
+    FROM ProjectMembership membership
+    WHERE membership.project.id = :projectId
+      AND membership.user.id = :userId
+    """)
+    Optional<ProjectMembershipRole> findRoleByProjectIdAndUserId(
+            @Param("projectId") UUID projectId,
+            @Param("userId") UUID userId
+    );
+
 
     void deleteByProjectIdAndUserId(UUID projectId, UUID userId);
 }

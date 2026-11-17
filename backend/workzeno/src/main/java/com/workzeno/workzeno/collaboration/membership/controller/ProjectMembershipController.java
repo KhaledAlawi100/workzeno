@@ -1,10 +1,7 @@
 
 package com.workzeno.workzeno.collaboration.membership.controller;
 
-import com.workzeno.workzeno.collaboration.membership.dto.AddProjectMemberRequest;
-import com.workzeno.workzeno.collaboration.membership.dto.ProjectMemberResponse;
-import com.workzeno.workzeno.collaboration.membership.dto.ProjectTeamResponse;
-import com.workzeno.workzeno.collaboration.membership.dto.UpdateProjectMemberRoleRequest;
+import com.workzeno.workzeno.collaboration.membership.dto.*;
 import com.workzeno.workzeno.collaboration.membership.service.ProjectMembershipService;
 import com.workzeno.workzeno.shared.api.ApiResponse;
 import com.workzeno.workzeno.shared.api.ApiResponseFactory;
@@ -199,4 +196,31 @@ public class ProjectMembershipController {
 
         return ResponseEntity.ok(body);
     }
+
+
+
+    @GetMapping("/my-membership")
+    public ResponseEntity<ApiResponse<MyProjectMembershipResponse>>
+    getMyProjectMembership(
+            @PathVariable UUID projectId,
+            HttpServletRequest httpRequest
+    ) {
+        log.info(
+                "Current user project membership request received. projectId={}",
+                projectId
+        );
+
+        MyProjectMembershipResponse result =
+                membershipService.getMyProjectMembership(projectId);
+
+        ApiResponse<MyProjectMembershipResponse> body =
+                responseFactory.success(
+                        "Your project membership retrieved successfully",
+                        result,
+                        httpRequest
+                );
+
+        return ResponseEntity.ok(body);
+    }
+
 }

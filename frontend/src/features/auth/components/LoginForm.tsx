@@ -13,6 +13,7 @@ import { getApiErrorMessage } from "../../../lib/api";
 import { loginSchema, type LoginFormValues } from "../authSchemas";
 import { useAuth } from "../AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
+
 export default function LoginForm() {
   const [successMessage, setSuccessMessage] = useState("");
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ export default function LoginForm() {
       });
     }
   }
+
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
       <Stack spacing={2}>
@@ -85,6 +87,7 @@ export default function LoginForm() {
           error={Boolean(errors.password)}
           helperText={errors.password?.message}
         />
+        
 
         <Button
           type="submit"

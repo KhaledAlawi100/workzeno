@@ -52,7 +52,11 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                 component="h2"
                 sx={{
                   fontWeight: 600,
+                  display: "-webkit-box",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 1,
                   overflowWrap: "anywhere",
+                  overflow: "hidden",
                 }}
               >
                 {project.name}
@@ -69,7 +73,12 @@ export default function ProjectCard({ project }: ProjectCardProps) {
               variant="body2"
               color="text.secondary"
               sx={{
-                minHeight: 40,
+                minHeight: "2.8em",
+                maxHeight: "2.8em",
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: 2,
+                overflow: "hidden",
                 overflowWrap: "anywhere",
               }}
             >

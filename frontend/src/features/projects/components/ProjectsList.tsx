@@ -6,10 +6,16 @@ import ProjectCard from "./ProjectCard";
 
 interface ProjectsListProps {
   projects: ProjectSummary[];
+  searchTerm?: string;
 }
 
-export default function ProjectsList({ projects }: ProjectsListProps) {
+export default function ProjectsList({
+  projects,
+  searchTerm = "",
+}: ProjectsListProps) {
   if (projects.length === 0) {
+    const hasSearch = searchTerm.trim().length > 0;
+
     return (
       <Paper
         variant="outlined"
@@ -45,11 +51,13 @@ export default function ProjectsList({ projects }: ProjectsListProps) {
           </Box>
 
           <Typography variant="h6" component="h2">
-            No projects yet
+            {hasSearch ? "No matching projects" : "No projects yet"}
           </Typography>
 
           <Typography color="text.secondary" variant="body2">
-            Your projects will appear here when you create one.
+            {hasSearch
+              ? "Try a different search term or clear your search."
+              : "Your projects will appear here when you create one."}
           </Typography>
         </Box>
       </Paper>

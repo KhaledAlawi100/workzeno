@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { registerUser } from "../authApi";
+import { registerUser } from "../api/authApi";
 import { getApiErrorMessage } from "../../../lib/api";
 import { registerSchema, type RegisterFormValues } from "../authSchemas";
 

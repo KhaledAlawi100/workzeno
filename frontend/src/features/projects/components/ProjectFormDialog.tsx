@@ -25,6 +25,7 @@ export default function ProjectFormDialog({
   onSubmit,
 }: ProjectFormDialogProps) {
   
+  // Memoize initial form values to avoid unnecessary re-renders of the form.
   const initialValues = useMemo(
     () => ({
       name: project?.name ?? "",

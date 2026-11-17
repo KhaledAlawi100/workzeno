@@ -1,11 +1,15 @@
-import { apiClient, refreshAccessToken, type ApiResponse } from "../../lib/api";
+import {
+  apiClient,
+  refreshAccessToken,
+  type ApiResponse,
+} from "../../../lib/api";
 
 import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
   RegisterResponse,
-} from "./auth.types";
+} from "../types/auth.types";
 
 export async function registerUser(
   request: RegisterRequest,

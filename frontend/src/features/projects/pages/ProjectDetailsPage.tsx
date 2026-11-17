@@ -1,15 +1,9 @@
-import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
-
 import {
   Alert,
-  Box,
   Button,
-  Chip,
   Container,
-  Divider,
-  Paper,
   Skeleton,
   Snackbar,
   Stack,
@@ -18,20 +12,17 @@ import {
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
-import RestoreOutlinedIcon from "@mui/icons-material/RestoreOutlined";
-
 import { useProject } from "../hooks/useProject";
-import { useUpdateProject } from "../hooks/useUpdateProject";
-import { useProjectStatus } from "../hooks/useProjectStatus";
-
 import ProjectFormDialog from "../components/ProjectFormDialog";
 import ArchiveProjectDialog from "../components/ArchiveProjectDialog";
-
-import type { CreateProjectFormValues } from "../projectSchemas";
-
+import ProjectDetailsHeader from "../components/details/ProjectDetailsHeader";
+import ProjectDetailsActions from "../components/details/ProjectDetailsActions";
+import ProjectDescription from "../components/details/ProjectDescription";
+import ProjectInformation from "../components/details/ProjectInformation";
 import { getApiErrorMessage } from "../../../lib/api";
+import { useAuth } from "../../auth/AuthContext";
+import { useProjectDetailsPermissions } from "../hooks/useProjectDetailsPermissions";
+import { useProjectDetailsActions } from "../hooks/useProjectDetailsActions";
 
 function ProjectDetailsLoading() {
   return (
@@ -47,7 +38,8 @@ function ProjectDetailsLoading() {
 export default function ProjectDetailsPage() {
   const { projectId } = useParams<{ projectId: string }>();
 
-  // Fetch the selected project's details.
+  const { user } = useAuth();
+
   const {
     data: project,
     isPending,
@@ -57,130 +49,19 @@ export default function ProjectDetailsPage() {
     isFetching,
   } = useProject(projectId);
 
-  // Dialog states.
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const permissions = useProjectDetailsPermissions(
+    project,
+    projectId,
+    user?.id,
+  );
 
-  // Success and error notification state.
-  const [notification, setNotification] = useState<{
-    message: string;
-    severity: "success" | "error";
-  } | null>(null);
+  const actions = useProjectDetailsActions(project);
 
-  // Project mutations.
-  const updateProjectMutation = useUpdateProject();
-
-  const { archiveMutation, restoreMutation } = useProjectStatus();
-
-  // Prevent conflicting project actions.
-  const isActionPending =
-    updateProjectMutation.isPending ||
-    archiveMutation.isPending ||
-    restoreMutation.isPending;
-
-  // Close edit dialog.
-  function handleCloseEditDialog() {
-    if (isActionPending) {
-      return;
-    }
-
-    setEditDialogOpen(false);
-  }
-
-  // Update project.
-  async function handleUpdateProject(
-    values: CreateProjectFormValues,
-  ): Promise<void> {
-    if (!project) {
-      return;
-    }
-
-    try {
-      await updateProjectMutation.mutateAsync({
-        projectId: project.id,
-        request: {
-          name: values.name,
-          description: values.description || null,
-        },
-      });
-
-      setEditDialogOpen(false);
-
-      setNotification({
-        message: "Project updated successfully.",
-        severity: "success",
-      });
-    } catch (error) {
-      setNotification({
-        message: getApiErrorMessage(error),
-        severity: "error",
-      });
-    }
-  }
-
-  // Close archive confirmation dialog.
-  function handleCloseArchiveDialog() {
-    if (isActionPending) {
-      return;
-    }
-
-    setArchiveDialogOpen(false);
-  }
-
-  // Archive project.
-  async function handleArchiveProject() {
-    if (!project) {
-      return;
-    }
-
-    try {
-      await archiveMutation.mutateAsync({
-        projectId: project.id,
-      });
-
-      setArchiveDialogOpen(false);
-
-      setNotification({
-        message: "Project archived successfully.",
-        severity: "success",
-      });
-    } catch (error) {
-      setNotification({
-        message: getApiErrorMessage(error),
-        severity: "error",
-      });
-    }
-  }
-
-  // Restore project.
-  async function handleRestoreProject() {
-    if (!project) {
-      return;
-    }
-
-    try {
-      await restoreMutation.mutateAsync({
-        projectId: project.id,
-      });
-
-      setNotification({
-        message: "Project restored successfully.",
-        severity: "success",
-      });
-    } catch (error) {
-      setNotification({
-        message: getApiErrorMessage(error),
-        severity: "error",
-      });
-    }
-  }
-
-  // Invalid or missing route parameter.
   if (!projectId) {
     return (
       <Container maxWidth="md" sx={{ py: 5 }}>
         <Alert severity="error">
-          Invalid project URL. A project ID is required.
+          Invalid project URL. Please select a valid project.
         </Alert>
 
         <Button
@@ -195,7 +76,6 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  // Initial loading state.
   if (isPending) {
     return (
       <Container maxWidth="md" sx={{ py: 5 }}>
@@ -204,7 +84,6 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  // Error and not-found states.
   if (isError) {
     const isNotFound =
       axios.isAxiosError(error) && error.response?.status === 404;
@@ -221,6 +100,7 @@ export default function ProjectDetailsPage() {
             Back to projects
           </Button>
 
+          {/* Show a specific message if the project was not found. */}
           {isNotFound ? (
             <Alert severity="warning">
               <Typography sx={{ fontWeight: 600 }}>
@@ -237,7 +117,9 @@ export default function ProjectDetailsPage() {
                   color="inherit"
                   size="small"
                   startIcon={<RefreshIcon />}
-                  onClick={() => refetch()}
+                  onClick={() => {
+                    void refetch();
+                  }}
                 >
                   Retry
                 </Button>
@@ -275,7 +157,7 @@ export default function ProjectDetailsPage() {
           Back to projects
         </Button>
 
-        {/* Project heading and actions */}
+        {/* Project heading and available actions */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={2}
@@ -284,68 +166,27 @@ export default function ProjectDetailsPage() {
             alignItems: { xs: "flex-start", sm: "center" },
           }}
         >
-          <Stack spacing={1}>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-                overflowWrap: "anywhere",
-              }}
-            >
-              {project.name}
-            </Typography>
+          <ProjectDetailsHeader project={project} />
 
-            <Chip
-              label={isActive ? "Active" : "Archived"}
-              color={isActive ? "success" : "default"}
-              size="small"
-              sx={{ alignSelf: "flex-start" }}
-            />
-          </Stack>
-
-          {/* Edit, archive, and restore actions */}
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            sx={{
-              width: { xs: "100%", sm: "auto" },
-            }}
-          >
-            <Button
-              variant="contained"
-              startIcon={<EditOutlinedIcon />}
-              onClick={() => setEditDialogOpen(true)}
-              disabled={isActionPending}
-            >
-              Edit project
-            </Button>
-
-            {isActive ? (
-              <Button
-                variant="outlined"
-                color="warning"
-                startIcon={<ArchiveOutlinedIcon />}
-                onClick={() => setArchiveDialogOpen(true)}
-                disabled={isActionPending}
-              >
-                Archive project
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<RestoreOutlinedIcon />}
-                onClick={handleRestoreProject}
-                disabled={isActionPending}
-              >
-                {restoreMutation.isPending ? "Restoring..." : "Restore project"}
-              </Button>
-            )}
-          </Stack>
+          <ProjectDetailsActions
+            projectId={project.id}
+            isActive={isActive}
+            shouldLoadMembership={permissions.shouldLoadMembership}
+            isMembershipPending={permissions.isMembershipPending}
+            isMembershipError={permissions.isMembershipError}
+            refetchMembership={permissions.refetchMembership}
+            canShowManagementActions={permissions.canShowManagementActions}
+            canEditProject={permissions.canEditProject}
+            canManageProjectStatus={permissions.canManageProjectStatus}
+            isActionPending={actions.isActionPending}
+            isRestoring={actions.isRestoring}
+            onEdit={actions.handleOpenEditDialog}
+            onArchive={actions.handleOpenArchiveDialog}
+            onRestore={actions.handleRestoreProject}
+          />
         </Stack>
 
-        {/* Background refresh indicator */}
+        {/* Show an indicator during background refreshes. */}
         {isFetching && (
           <Typography variant="caption" color="text.secondary">
             Refreshing project details...
@@ -353,133 +194,48 @@ export default function ProjectDetailsPage() {
         )}
 
         {/* Project description */}
-        <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-          <Stack spacing={2}>
-            <Typography variant="h6" component="h2">
-              Description
-            </Typography>
+        <ProjectDescription description={project.description} />
 
-            <Typography
-              color={project.description ? "text.primary" : "text.secondary"}
-              sx={{
-                whiteSpace: "pre-wrap",
-                overflowWrap: "anywhere",
-              }}
-            >
-              {project.description || "No description provided."}
-            </Typography>
-          </Stack>
-        </Paper>
-
-        {/* Project information */}
-        <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-          <Stack spacing={2}>
-            <Typography variant="h6" component="h2">
-              Project information
-            </Typography>
-
-            <Divider />
-
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Project ID
-              </Typography>
-
-              <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                {project.id}
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Owner ID
-              </Typography>
-
-              <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                {project.ownerId}
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Status
-              </Typography>
-
-              <Typography variant="body2">{project.status}</Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Created at
-              </Typography>
-
-              <Typography variant="body2">
-                {new Date(project.createdAt).toLocaleString()}
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Last updated
-              </Typography>
-
-              <Typography variant="body2">
-                {new Date(project.updatedAt).toLocaleString()}
-              </Typography>
-            </Box>
-          </Stack>
-        </Paper>
-
-        {/* Project members placeholder */}
-        <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-          <Stack spacing={1}>
-            <Typography variant="h6" component="h2">
-              Project members
-            </Typography>
-
-            <Typography color="text.secondary" variant="body2">
-              Project member management will be available in a future step.
-            </Typography>
-          </Stack>
-        </Paper>
+        {/* Project metadata */}
+        <ProjectInformation project={project} />
       </Stack>
 
       {/* Edit project dialog */}
       <ProjectFormDialog
-        open={editDialogOpen}
+        open={actions.editDialogOpen}
         mode="edit"
         project={project}
-        onClose={handleCloseEditDialog}
-        onSubmit={handleUpdateProject}
+        onClose={actions.handleCloseEditDialog}
+        onSubmit={actions.handleUpdateProject}
       />
 
       {/* Archive confirmation dialog */}
       <ArchiveProjectDialog
-        open={archiveDialogOpen}
+        open={actions.archiveDialogOpen}
         projectName={project.name}
-        isPending={archiveMutation.isPending}
-        onClose={handleCloseArchiveDialog}
-        onConfirm={handleArchiveProject}
+        isPending={actions.isArchiving}
+        onClose={actions.handleCloseArchiveDialog}
+        onConfirm={actions.handleArchiveProject}
       />
 
       {/* Success and error notifications */}
       <Snackbar
-        open={notification !== null}
+        open={actions.notification !== null}
         autoHideDuration={5000}
-        onClose={() => setNotification(null)}
+        onClose={actions.handleCloseNotification}
         anchorOrigin={{
           vertical: "bottom",
           horizontal: "right",
         }}
       >
-        {notification ? (
+        {actions.notification ? (
           <Alert
-            severity={notification.severity}
+            severity={actions.notification.severity}
             variant="filled"
-            onClose={() => setNotification(null)}
+            onClose={actions.handleCloseNotification}
             sx={{ width: "100%" }}
           >
-            {notification.message}
+            {actions.notification.message}
           </Alert>
         ) : undefined}
       </Snackbar>

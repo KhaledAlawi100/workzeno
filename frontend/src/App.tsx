@@ -1,15 +1,20 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+
 import { Box, CircularProgress, Typography } from "@mui/material";
 
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 
-// Lazy-loaded pages
-const HealthPage = lazy(() => import("./pages/HealthPage"));
+import PublicLayout from "./app/layout/PublicLayout";
+import AppLayout from "./app/layout/AppLayout";
+
+// Public pages
+const LandingPage = lazy(() => import("./pages/landing/LandingPage"));const HealthPage = lazy(() => import("./pages/HealthPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
-const RegisterPage = lazy(() => import("./pages/RegisterPage"));
-const LoginPage = lazy(() => import("./pages/LoginPage"));
+// Protected pages
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 
 const ProjectsPage = lazy(
@@ -20,7 +25,17 @@ const ProjectDetailsPage = lazy(
   () => import("./features/projects/pages/ProjectDetailsPage"),
 );
 
+const ProjectMembersPage = lazy(
+  () => import("./features/collaboration/membership/pages/ProjectMembersPage"),
+);
 
+const ProjectInvitationsPage = lazy(
+  () => import("./features/collaboration/invitation/pages/ProjectInvitationsPage"),
+);
+
+
+
+const MyInvitationsPage = lazy(() => import("./features/collaboration/invitation/pages/MyInvitationsPage"));
 
 function PageLoadingFallback() {
   return (
@@ -47,39 +62,44 @@ export default function App() {
     <BrowserRouter>
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
-          <Route path="/" element={<HealthPage />} />
+          {/* All public pages share the public navigation. */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/health" element={<HealthPage />} />
+          </Route>
 
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/login" element={<LoginPage />} />
-
+          {/* All protected pages share the authenticated navigation. */}
           <Route
-            path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <AppLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
 
-          <Route
-            path="/projects"
-            element={
-              <ProtectedRoute>
-                <ProjectsPage />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/projects/:projectId"
+              element={<ProjectDetailsPage />}
+            />
 
-          <Route
-            path="/projects/:projectId"
-            element={
-              <ProtectedRoute>
-                <ProjectDetailsPage />
-              </ProtectedRoute>
-            }
-          />
 
-          
+            <Route
+              path="/projects/:projectId/members"
+              element={<ProjectMembersPage />}
+            />
+            <Route
+              path="/projects/:projectId/invitations"
+              element={<ProjectInvitationsPage />}
+            />
+            
+            <Route path="/invitations" element={<MyInvitationsPage />} />
+          </Route>
+
+          {/* Unknown routes */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>

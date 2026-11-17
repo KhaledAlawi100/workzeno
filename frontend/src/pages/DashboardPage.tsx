@@ -1,28 +1,33 @@
-import { useNavigate } from "react-router-dom";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Box, Paper, Stack, Typography } from "@mui/material";
+
 import { useAuth } from "../features/auth/AuthContext";
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  async function handleLogout(): Promise<void> {
-    await logout();
-    navigate("/login", { replace: true });
-  }
+  const { user } = useAuth();
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
-        <Typography variant="h4">Workzeno Dashboard</Typography>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="h4" component="h1">
+            Workzeno Dashboard
+          </Typography>
 
-        <Typography>Welcome, {user?.email}</Typography>
+          <Typography color="text.secondary" sx={{ mt: 1 }}>
+            Welcome back, {user?.email.split("@")[0]}.
+          </Typography>
+        </Box>
 
-        <Typography>Role: {user?.role}</Typography>
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Your workspace
+          </Typography>
 
-        <Button variant="contained" onClick={handleLogout}>
-          Sign out
-        </Button>
+          <Typography color="text.secondary">
+            Manage your projects and collaborate with your team from the
+            navigation above.
+          </Typography>
+        </Paper>
       </Stack>
     </Box>
   );
