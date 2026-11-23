@@ -12,6 +12,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,6 +57,43 @@ public interface ProjectMembershipRepository
             @Param("userId") UUID userId
     );
 
+    @Query("""
+        SELECT membership
+        FROM ProjectMembership membership
+        JOIN FETCH membership.user
+        WHERE membership.project.id = :projectId
+          AND membership.user.id IN :userIds
+        """)
+    List<ProjectMembership> findAllByProjectIdAndUserIds(
+            @Param("projectId") UUID projectId,
+            @Param("userIds") Collection<UUID> userIds
+    );
+
 
     void deleteByProjectIdAndUserId(UUID projectId, UUID userId);
+
+    /**
+     * Search members belonging to one project by email.
+     *
+     * Only project memberships are returned.
+     * The associated User is fetched in the same query so that
+     * mapping the response does not trigger lazy-loading queries.
+     *
+     * Pageable limits the number of suggestions returned.
+     */
+    @Query("""
+        SELECT membership
+        FROM ProjectMembership membership
+        JOIN FETCH membership.user user
+        WHERE membership.project.id = :projectId
+          AND LOWER(user.email) LIKE LOWER(CONCAT(:query, '%'))
+        ORDER BY user.email ASC
+        """)
+    List<ProjectMembership> searchMembersByEmail(
+            @Param("projectId") UUID projectId,
+            @Param("query") String query,
+            Pageable pageable
+    );
+
+
 }

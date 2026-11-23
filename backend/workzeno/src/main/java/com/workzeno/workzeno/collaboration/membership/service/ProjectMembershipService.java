@@ -10,7 +10,9 @@ import com.workzeno.workzeno.identity.user.repository.UserRepository;
 import com.workzeno.workzeno.projects.domain.Project;
 import com.workzeno.workzeno.projects.domain.ProjectStatus;
 import com.workzeno.workzeno.projects.service.ProjectAccessService;
+import com.workzeno.workzeno.projects.service.ProjectModificationPolicy;
 import com.workzeno.workzeno.shared.exception.ApiException;
+import com.workzeno.workzeno.tasks.repository.TaskAssigneeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +25,7 @@ import com.workzeno.workzeno.collaboration.membership.api.MembershipManagement;
 import com.workzeno.workzeno.collaboration.membership.api.ProjectAuthorization;
 
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -37,6 +40,8 @@ public class ProjectMembershipService implements MembershipManagement {
     private final ProjectAuthorization authorizationService;
     private final ProjectAccessService projectAccessService;
     private final ProjectMembershipMapper membershipMapper;
+    private final TaskAssigneeRepository taskAssigneeRepository;
+    ProjectModificationPolicy projectModificationPolicy;
 
     @Transactional
     public void addMember(UUID projectId, AddProjectMemberRequest request) {
@@ -95,16 +100,29 @@ public class ProjectMembershipService implements MembershipManagement {
         membership.changeRole(request.role());
     }
 
+
     @Transactional
     public void removeMember(UUID projectId, UUID targetUserId) {
-        UUID currentUserId = getCurrentUserId();
-        Project project = loadActiveProject(projectId, currentUserId);
 
-        authorizationService.requireOwnerOrAdmin(project, currentUserId);
+        UUID currentUserId = getCurrentUserId();
+
+        Project project = loadActiveProject(
+                projectId,
+                currentUserId
+        );
+
+        // Preserve the existing authorization policy.
+        authorizationService.requireOwnerOrAdmin(
+                project,
+                currentUserId
+        );
+
         ensureOwnerIsNotTarget(project, targetUserId);
 
-        ProjectMembership membership =
-                loadMembership(projectId, targetUserId);
+        ProjectMembership membership = loadMembership(
+                projectId,
+                targetUserId
+        );
 
         ensureAdminCanOnlyBeRemovedByOwner(
                 project,
@@ -112,6 +130,25 @@ public class ProjectMembershipService implements MembershipManagement {
                 currentUserId
         );
 
+        /*
+         * Step 1:
+         * Delete every task assignment belonging to this member
+         * inside this project.
+         *
+         * This must happen before deleting the membership because
+         * the database foreign key uses ON DELETE NO ACTION.
+         */
+        taskAssigneeRepository.deleteAllByProjectIdAndUserId(
+                projectId,
+                targetUserId
+        );
+
+        /*
+         * Step 2:
+         * Now it is safe to delete the membership.
+         *
+         * Tasks and comments are not deleted.
+         */
         membershipRepository.delete(membership);
     }
 
@@ -131,6 +168,41 @@ public class ProjectMembershipService implements MembershipManagement {
                 .map(membershipMapper::toProjectMemberResponse);
     }
 
+    /**
+     * Searches the current project's members for assignment suggestions.
+     *
+     * The caller must have access to the project.
+     * Only actual project members are returned, not the project owner
+     * or unrelated users.
+     */
+    public List<ProjectMemberResponse> searchProjectMembers(
+            UUID projectId,
+            String search,
+            int limit
+    ) {
+
+        UUID currentUserId = getCurrentUserId();
+
+        projectAccessService.loadAccessibleProject(
+                projectId,
+                currentUserId
+        );
+
+        String normalizedSearch = search.trim().toLowerCase(
+                java.util.Locale.ROOT
+        );
+
+        List<ProjectMembership> memberships =
+                membershipRepository.searchMembersByEmail(
+                        projectId,
+                        normalizedSearch,
+                        Pageable.ofSize(limit)
+                );
+
+        return memberships.stream()
+                .map(membershipMapper::toProjectMemberResponse)
+                .toList();
+    }
 
 
     public ProjectTeamResponse getProjectTeam(
@@ -139,17 +211,14 @@ public class ProjectMembershipService implements MembershipManagement {
     ) {
         UUID currentUserId = getCurrentUserId();
 
-
         Project project = projectAccessService.loadAccessibleProject(
                 projectId,
                 currentUserId
         );
 
-
         var ownerResponse = membershipMapper.toProjectOwnerResponse(
                 project.getOwner()
         );
-
 
         Page<ProjectMemberResponse> members =
                 membershipRepository
@@ -190,7 +259,7 @@ public class ProjectMembershipService implements MembershipManagement {
             );
         }
 
-        ensureProjectIsActive(project);
+        projectModificationPolicy.requireActive(project, "Membership");
         ensureRoleIsProvided(role);
         ensureOwnerIsNotTarget(project, user.getId());
 
@@ -254,7 +323,7 @@ public class ProjectMembershipService implements MembershipManagement {
                 currentUserId
         );
 
-        ensureProjectIsActive(project);
+        projectModificationPolicy.requireActive(project, "Membership");
 
         return project;
     }
@@ -332,15 +401,7 @@ public class ProjectMembershipService implements MembershipManagement {
         }
     }
 
-    private void ensureProjectIsActive(Project project) {
-        if (project.getStatus() != ProjectStatus.ACTIVE) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    "Project is archived",
-                    "Membership cannot be changed while the project is archived"
-            );
-        }
-    }
+
 
     private ApiException membershipAlreadyExists() {
         return new ApiException(

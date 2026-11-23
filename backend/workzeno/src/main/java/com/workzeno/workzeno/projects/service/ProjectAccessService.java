@@ -18,6 +18,12 @@ public class ProjectAccessService {
 
     private final ProjectRepository projectRepository;
 
+    /**
+     * An Accessible project is owned by the user , or he is a member in it
+     * @param projectId
+     * @param userId
+     * @return
+     */
     public Project loadAccessibleProject(UUID projectId, UUID userId) {
         return projectRepository.findAccessibleProjectById(projectId, userId)
                 .orElseThrow(() -> new ApiException(

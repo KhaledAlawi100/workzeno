@@ -1,5 +1,6 @@
 
 package com.workzeno.workzeno.collaboration.invitation.service;
+
 import com.workzeno.workzeno.collaboration.invitation.domain.ProjectInvitation;
 import com.workzeno.workzeno.collaboration.invitation.domain.ProjectInvitationStatus;
 import com.workzeno.workzeno.collaboration.invitation.dto.*;
@@ -8,11 +9,12 @@ import com.workzeno.workzeno.collaboration.invitation.exception.InvitationExpire
 import com.workzeno.workzeno.collaboration.invitation.mapper.ProjectInvitationMapper;
 import com.workzeno.workzeno.collaboration.invitation.repository.ProjectInvitationRepository;
 import com.workzeno.workzeno.identity.security.service.CurrentUserProvider;
+import com.workzeno.workzeno.identity.user.domain.EmailAddress;
 import com.workzeno.workzeno.identity.user.domain.User;
 import com.workzeno.workzeno.identity.user.repository.UserRepository;
 import com.workzeno.workzeno.projects.domain.Project;
-import com.workzeno.workzeno.projects.domain.ProjectStatus;
 import com.workzeno.workzeno.projects.service.ProjectAccessService;
+import com.workzeno.workzeno.projects.service.ProjectModificationPolicy;
 import com.workzeno.workzeno.shared.exception.ApiException;
 import com.workzeno.workzeno.collaboration.membership.api.MembershipManagement;
 import com.workzeno.workzeno.collaboration.membership.api.ProjectAuthorization;
@@ -23,16 +25,15 @@ import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -44,6 +45,9 @@ public class ProjectInvitationService {
     private static final String PENDING_INVITATION_CONSTRAINT =
             "uq_project_invitations_pending_project_email";
 
+    
+    private static final int INVITATION_EXPIRATION_BATCH_SIZE = 100;
+
     private final ProjectInvitationRepository invitationRepository;
     private final MembershipManagement membershipManagement;
     private final UserRepository userRepository;
@@ -52,10 +56,10 @@ public class ProjectInvitationService {
     private final ProjectAuthorization authorizationService;
     private final ProjectAccessService projectAccessService;
     private final ProjectInvitationMapper invitationMapper;
+    private final ProjectModificationPolicy projectModificationPolicy;
 
     @Value("${app.collaboration.invitation.ttl}")
     private Duration invitationTtl;
-
 
     // =========================================================
     // CREATE INVITATION
@@ -73,7 +77,7 @@ public class ProjectInvitationService {
                 inviterId
         );
 
-        ensureProjectIsActive(project);
+        projectModificationPolicy.requireActive(project, "Invitation");
 
         authorizeInvitation(
                 project,
@@ -81,7 +85,7 @@ public class ProjectInvitationService {
                 request.role()
         );
 
-        String normalizedEmail = normalizeEmail(
+        String normalizedEmail = EmailAddress.normalize(
                 request.inviteeEmail()
         );
 
@@ -97,19 +101,17 @@ public class ProjectInvitationService {
                 invitee.getId()
         );
 
+
         expireExpiredInvitationForProjectAndEmail(
                 projectId,
                 normalizedEmail,
                 Instant.now()
         );
 
-
         ensureNoPendingInvitation(
                 projectId,
                 normalizedEmail
         );
-
-
 
         Instant createdAt = Instant.now();
         Instant expiresAt = createdAt.plus(invitationTtl);
@@ -146,9 +148,8 @@ public class ProjectInvitationService {
         }
     }
 
-
     // =========================================================
-    // GET MY PENDING INVITATIONS
+    // MY PENDING INVITATIONS
     // =========================================================
 
     @Transactional
@@ -161,14 +162,12 @@ public class ProjectInvitationService {
 
         Instant now = Instant.now();
 
-        // First, persist EXPIRED for invitations that have expired.
+        // Expire invitations before returning pending invitations.
         expireRecipientInvitations(
                 currentUser.getEmail(),
                 now
         );
 
-        // Then retrieve only invitations that are still pending
-        // and have not expired.
         Page<ProjectInvitation> invitations =
                 invitationRepository
                         .findAllByInviteeEmailAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
@@ -182,7 +181,6 @@ public class ProjectInvitationService {
                 invitationMapper::toMyInvitationResponse
         );
     }
-
 
     // =========================================================
     // ACCEPT INVITATION
@@ -212,7 +210,7 @@ public class ProjectInvitationService {
             );
         }
 
-        if (!normalizeEmail(acceptingUser.getEmail())
+        if (!EmailAddress.normalize(acceptingUser.getEmail())
                 .equals(invitation.getInviteeEmail())) {
 
             throw new ApiException(
@@ -224,14 +222,12 @@ public class ProjectInvitationService {
 
         Instant acceptedAt = Instant.now();
 
-        // If expired, this changes the status to EXPIRED,
-        // saves it, and throws InvitationExpiredException.
-        // The transaction commits because of noRollbackFor above.
+        // If expired, update the invitation and throw the domain exception.
         expireInvitationIfNecessary(invitation, acceptedAt);
 
         Project project = invitation.getProject();
 
-        ensureProjectIsActive(project);
+        projectModificationPolicy.requireActive(project, "Invitation");
 
         ensureUserIsNotAlreadyMember(
                 project.getId(),
@@ -251,16 +247,18 @@ public class ProjectInvitationService {
         membershipManagement.addMemberFromInvitation(
                 project,
                 acceptingUser,
-                role);
+                role
+        );
 
-        invitation.accept(acceptingUser, acceptedAt);
-
+        invitation.accept(
+                acceptingUser,
+                acceptedAt
+        );
 
         invitationRepository.save(invitation);
 
         return invitationMapper.toAcceptInvitationResponse(invitation);
     }
-
 
     // =========================================================
     // DECLINE INVITATION
@@ -289,8 +287,7 @@ public class ProjectInvitationService {
             );
         }
 
-        // Verify that the current user is the intended recipient.
-        if (!normalizeEmail(decliningUser.getEmail())
+        if (!EmailAddress.normalize(decliningUser.getEmail())
                 .equals(invitation.getInviteeEmail())) {
 
             throw new ApiException(
@@ -302,15 +299,18 @@ public class ProjectInvitationService {
 
         Instant declinedAt = Instant.now();
 
-        // Persist EXPIRED and stop if the invitation has expired.
-        expireInvitationIfNecessary(invitation, declinedAt);
+        expireInvitationIfNecessary(
+                invitation,
+                declinedAt
+        );
 
-        // The invitation is still valid, so it can be declined.
-        invitation.decline(decliningUser, declinedAt);
+        invitation.decline(
+                decliningUser,
+                declinedAt
+        );
 
         invitationRepository.save(invitation);
     }
-
 
     // =========================================================
     // REVOKE INVITATION
@@ -328,7 +328,7 @@ public class ProjectInvitationService {
                 currentUserId
         );
 
-        ensureProjectIsActive(project);
+        projectModificationPolicy.requireActive(project, "Invitation");
 
         ProjectInvitation invitation = invitationRepository
                 .findByIdForUpdate(invitationId)
@@ -354,11 +354,16 @@ public class ProjectInvitationService {
             );
         }
 
-
         if (invitation.getRole() == ProjectMembershipRole.ADMIN) {
-            authorizationService.requireOwner(project, currentUserId);
+            authorizationService.requireOwner(
+                    project,
+                    currentUserId
+            );
         } else {
-            authorizationService.requireOwnerOrAdmin(project, currentUserId);
+            authorizationService.requireOwnerOrAdmin(
+                    project,
+                    currentUserId
+            );
         }
 
         if (invitation.getStatus() != ProjectInvitationStatus.PENDING) {
@@ -371,21 +376,23 @@ public class ProjectInvitationService {
 
         Instant revokedAt = Instant.now();
 
-        // Persist EXPIRED and stop if the invitation has expired.
-        expireInvitationIfNecessary(invitation, revokedAt);
+        expireInvitationIfNecessary(
+                invitation,
+                revokedAt
+        );
 
         User revokingUser = loadUser(currentUserId);
 
-        // The invitation is still valid, so it can be revoked.
-        // The domain method records revokedBy and revokedAt.
-        invitation.revoke(revokingUser, revokedAt);
+        invitation.revoke(
+                revokingUser,
+                revokedAt
+        );
 
         invitationRepository.save(invitation);
     }
 
-
     // =========================================================
-    // GET PROJECT INVITATIONS
+    // PROJECT INVITATION HISTORY
     // =========================================================
 
     @Transactional
@@ -405,7 +412,7 @@ public class ProjectInvitationService {
                 currentUserId
         );
 
-
+        // Expire old invitations before returning project history.
         expireProjectInvitations(
                 projectId,
                 Instant.now()
@@ -423,9 +430,8 @@ public class ProjectInvitationService {
         );
     }
 
-
     // =========================================================
-    // GET PROJECT INVITATION DETAILS
+    // SINGLE PROJECT INVITATION
     // =========================================================
 
     @Transactional(readOnly = true)
@@ -446,99 +452,155 @@ public class ProjectInvitationService {
         );
 
         ProjectInvitation invitation = invitationRepository
-                .findByIdAndProject_Id(invitationId, projectId)
+                .findByIdAndProject_Id(
+                        invitationId,
+                        projectId
+                )
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
                         "Invitation not found",
                         "The requested invitation does not exist in this project"
                 ));
 
-        // Convert the entity into the complete invitation details response.
         return invitationMapper.toProjectInvitationResponse(invitation);
     }
 
+    // =========================================================
+    // BATCH EXPIRATION
+    // =========================================================
 
-
+    /**
+     * Expires invitations for a project and a specific email.
+     *
+     * Each query retrieves at most BATCH_SIZE invitation IDs.
+     * Entities are loaded and updated in bounded batches so
+     * expiration does not load an unlimited number of rows.
+     */
     private void expireExpiredInvitationForProjectAndEmail(
             UUID projectId,
             String inviteeEmail,
             Instant now
     ) {
+        while (true) {
 
-        List<ProjectInvitation> expiredInvitations =
-                invitationRepository
-                        .findAllByProject_IdAndInviteeEmailAndStatusAndExpiresAtLessThanEqual(
-                                projectId,
-                                inviteeEmail,
-                                ProjectInvitationStatus.PENDING,
-                                now
-                        );
+            List<UUID> expiredIds =
+                    invitationRepository
+                            .findExpiredProjectRecipientInvitationIds(
+                                    projectId,
+                                    inviteeEmail,
+                                    ProjectInvitationStatus.PENDING,
+                                    now,
+                                    PageRequest.of(
+                                            0,
+                                            INVITATION_EXPIRATION_BATCH_SIZE
+                                    )
+                            );
 
+            if (expiredIds.isEmpty()) {
+                return;
+            }
 
-        if (expiredInvitations.isEmpty()) {
-            return;
+            expireInvitationBatch(
+                    expiredIds,
+                    now
+            );
         }
-
-        expiredInvitations.forEach(
-                invitation -> invitation.expire(now)
-        );
-
-
-        invitationRepository.saveAllAndFlush(expiredInvitations);
     }
 
-    // =========================================================
-    // EXPIRATION HELPERS
-    // =========================================================
 
-
-    /**
-     * Expires all pending invitations belonging to a project
-     * whose expiration time has been reached.
-     */
     private void expireProjectInvitations(
             UUID projectId,
             Instant now
     ) {
-        List<ProjectInvitation> expiredInvitations =
-                invitationRepository
-                        .findAllByProject_IdAndStatusAndExpiresAtLessThanEqual(
-                                projectId,
-                                ProjectInvitationStatus.PENDING,
-                                now
-                        );
+        while (true) {
 
-        expiredInvitations.forEach(
-                invitation -> invitation.expire(now)
-        );
+            List<UUID> expiredIds =
+                    invitationRepository
+                            .findExpiredProjectInvitationIds(
+                                    projectId,
+                                    ProjectInvitationStatus.PENDING,
+                                    now,
+                                    PageRequest.of(
+                                            0,
+                                            INVITATION_EXPIRATION_BATCH_SIZE
+                                    )
+                            );
 
-        invitationRepository.saveAll(expiredInvitations);
+            if (expiredIds.isEmpty()) {
+                return;
+            }
+
+            expireInvitationBatch(
+                    expiredIds,
+                    now
+            );
+        }
     }
 
-
     /**
-     * Expires all pending invitations belonging to a recipient
-     * whose expiration time has been reached.
+     * Expires all expired pending invitations belonging to a recipient.
      */
     private void expireRecipientInvitations(
             String inviteeEmail,
             Instant now
     ) {
-        List<ProjectInvitation> expiredInvitations =
-                invitationRepository
-                        .findAllByInviteeEmailAndStatusAndExpiresAtLessThanEqual(
-                                inviteeEmail,
-                                ProjectInvitationStatus.PENDING,
-                                now
-                        );
+        while (true) {
 
-        expiredInvitations.forEach(
-                invitation -> invitation.expire(now)
-        );
+            List<UUID> expiredIds =
+                    invitationRepository
+                            .findExpiredRecipientInvitationIds(
+                                    inviteeEmail,
+                                    ProjectInvitationStatus.PENDING,
+                                    now,
+                                    PageRequest.of(
+                                            0,
+                                            INVITATION_EXPIRATION_BATCH_SIZE
+                                    )
+                            );
 
-        invitationRepository.saveAll(expiredInvitations);
+            if (expiredIds.isEmpty()) {
+                return;
+            }
+
+            expireInvitationBatch(
+                    expiredIds,
+                    now
+            );
+        }
     }
 
+
+    private void expireInvitationBatch(
+            List<UUID> invitationIds,
+            Instant now
+    ) {
+        if (invitationIds.isEmpty()) {
+            return;
+        }
+
+        List<ProjectInvitation> invitations =
+                invitationRepository.findAllById(invitationIds);
+
+        if (invitations.isEmpty()) {
+            return;
+        }
+
+        for (ProjectInvitation invitation : invitations) {
+
+            if (invitation.getStatus() == ProjectInvitationStatus.PENDING
+                    && !now.isBefore(invitation.getExpiresAt())) {
+
+                invitation.expire(now);
+            }
+        }
+
+
+        invitationRepository.saveAllAndFlush(invitations);
+    }
+
+    // =========================================================
+    // SINGLE INVITATION EXPIRATION
+    // =========================================================
 
     private void expireInvitationIfNecessary(
             ProjectInvitation invitation,
@@ -550,13 +612,14 @@ public class ProjectInvitationService {
 
             invitationRepository.save(invitation);
 
+            // This exception is configured not to roll back
+            // so the EXPIRED state is persisted.
             throw new InvitationExpiredException();
         }
     }
 
-
     // =========================================================
-    // AUTHORIZATION AND VALIDATION HELPERS
+    // AUTHORIZATION
     // =========================================================
 
     private void authorizeInvitation(
@@ -580,30 +643,24 @@ public class ProjectInvitationService {
             return;
         }
 
-        // Owner or ADMIN can invite someone as MEMBER.
         authorizationService.requireOwnerOrAdmin(
                 project,
                 inviterId
         );
     }
 
-
-    private void ensureProjectIsActive(Project project) {
-        if (project.getStatus() != ProjectStatus.ACTIVE) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    "Project is archived",
-                    "Invitation operations are not allowed for archived projects"
-            );
-        }
-    }
-
+    // =========================================================
+    // VALIDATION HELPERS
+    // =========================================================
 
     private void ensureOwnerIsNotInvitee(
             Project project,
             UUID inviteeId
     ) {
-        if (Objects.equals(project.getOwner().getId(), inviteeId)) {
+        if (Objects.equals(
+                project.getOwner().getId(),
+                inviteeId
+        )) {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "Invalid invitation",
@@ -611,21 +668,6 @@ public class ProjectInvitationService {
             );
         }
     }
-
-
-    private String normalizeEmail(String email) {
-        if (email == null || email.isBlank()) {
-            throw new ApiException(
-                    HttpStatus.BAD_REQUEST,
-                    "Invalid email",
-                    "An invitee email address is required"
-            );
-        }
-
-        return email.trim().toLowerCase(Locale.ROOT);
-    }
-
-
 
     private void ensureUserIsNotAlreadyMember(
             UUID projectId,
@@ -635,7 +677,6 @@ public class ProjectInvitationService {
             throw membershipAlreadyExists();
         }
     }
-
 
     private void ensureNoPendingInvitation(
             UUID projectId,
@@ -654,9 +695,8 @@ public class ProjectInvitationService {
         }
     }
 
-
     // =========================================================
-    // USER LOOKUP HELPERS
+    // USER LOOKUP
     // =========================================================
 
     private User loadUserByEmail(String email) {
@@ -668,7 +708,6 @@ public class ProjectInvitationService {
                 ));
     }
 
-
     private User loadUser(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(
@@ -678,9 +717,8 @@ public class ProjectInvitationService {
                 ));
     }
 
-
     // =========================================================
-    // ERROR HELPERS
+    // EXCEPTION HELPERS
     // =========================================================
 
     private ApiException membershipAlreadyExists() {
@@ -691,7 +729,6 @@ public class ProjectInvitationService {
         );
     }
 
-
     private ApiException pendingInvitationAlreadyExists() {
         return new ApiException(
                 HttpStatus.CONFLICT,
@@ -700,7 +737,10 @@ public class ProjectInvitationService {
         );
     }
 
-
+    /**
+     * Searches the exception cause chain for a database constraint
+     * violation with the specified constraint name.
+     */
     private boolean isConstraintViolation(
             Throwable exception,
             String constraintName

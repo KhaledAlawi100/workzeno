@@ -1,6 +1,7 @@
 package com.workzeno.workzeno.collaboration.invitation.domain;
 
 import com.workzeno.workzeno.collaboration.membership.domain.ProjectMembershipRole;
+import com.workzeno.workzeno.identity.user.domain.EmailAddress;
 import com.workzeno.workzeno.identity.user.domain.User;
 import com.workzeno.workzeno.projects.domain.Project;
 import com.workzeno.workzeno.shared.exception.ApiException;
@@ -112,7 +113,7 @@ public class ProjectInvitation {
             Instant expiresAt
     ) {
         this.project = project;
-        this.inviteeEmail = normalizeEmail(inviteeEmail);
+        this.inviteeEmail = EmailAddress.normalize(inviteeEmail);
         this.role = role;
         this.invitedBy = invitedBy;
         this.status = ProjectInvitationStatus.PENDING;
@@ -149,7 +150,7 @@ public class ProjectInvitation {
             );
         }
 
-        if (!normalizeEmail(acceptingUser.getEmail()).equals(inviteeEmail)) {
+        if (!EmailAddress.normalize(acceptingUser.getEmail()).equals(inviteeEmail)) {
             throw new ApiException(
                     HttpStatus.FORBIDDEN,
                     "Invitation email mismatch",
@@ -182,7 +183,7 @@ public class ProjectInvitation {
             );
         }
 
-        if (!normalizeEmail(decliningUser.getEmail()).equals(inviteeEmail)) {
+        if (!EmailAddress.normalize(decliningUser.getEmail()).equals(inviteeEmail)) {
             throw new ApiException(
                     HttpStatus.FORBIDDEN,
                     "Invitation email mismatch",
@@ -299,11 +300,4 @@ public class ProjectInvitation {
         }
     }
 
-    private static String normalizeEmail(String email) {
-        if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException("Email is required");
-        }
-
-        return email.trim().toLowerCase(Locale.ROOT);
-    }
 }

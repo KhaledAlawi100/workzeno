@@ -41,18 +41,12 @@ public class User {
     }
 
     public User(String email, String passwordHash) {
-        this.email = normalizeEmail(email);
+        this.email = EmailAddress.normalize(email);
         this.passwordHash = passwordHash;
         this.role = UserRole.USER;
         this.status = UserStatus.ACTIVE;
     }
 
-    private static String normalizeEmail(String email) {
-        if (email == null) {
-            throw new IllegalArgumentException("Email is required");
-        }
-        return email.trim().toLowerCase(Locale.ROOT);
-    }
 
     @jakarta.persistence.PrePersist
     private void onCreate() {

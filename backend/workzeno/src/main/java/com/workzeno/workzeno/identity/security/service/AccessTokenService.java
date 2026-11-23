@@ -54,8 +54,8 @@ public class AccessTokenService {
             Instant issuedAt,
             Instant expiresAt
     ) {
-        // The subject identifies the user; do not put sensitive user data
-        // such as passwords or other credentials in JWT claims.
+        // The subject identifies the user;
+        // DO NOT  put sensitive user data such as passwords or other credentials in JWT claims.
         return JwtClaimsSet.builder()
                 .issuer(jwtProperties.getIssuer())
                 .subject(userId.toString())
@@ -75,8 +75,6 @@ public class AccessTokenService {
             JwsHeader header,
             JwtClaimsSet claims
     ) {
-        return jwtEncoder.encode(
-                JwtEncoderParameters.from(header, claims)
-        ).getTokenValue();
+        return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }
 }

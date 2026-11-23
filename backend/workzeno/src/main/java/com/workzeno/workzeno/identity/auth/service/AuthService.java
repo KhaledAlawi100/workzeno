@@ -15,6 +15,7 @@ import com.workzeno.workzeno.identity.security.service.AccessTokenService;
 import com.workzeno.workzeno.identity.security.properties.JwtProperties;
 import com.workzeno.workzeno.identity.security.properties.RefreshTokenProperties;
 import com.workzeno.workzeno.identity.security.service.RefreshTokenService;
+import com.workzeno.workzeno.identity.user.domain.EmailAddress;
 import com.workzeno.workzeno.identity.user.domain.User;
 import com.workzeno.workzeno.identity.user.repository.UserRepository;
 import com.workzeno.workzeno.identity.user.domain.UserStatus;
@@ -58,7 +59,7 @@ public class AuthService {
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
-        String email = normalizeEmail(request.email());
+        String email = EmailAddress.normalize(request.email());
         ensureEmailAvailable(email);
 
         User user = new User(
@@ -71,7 +72,8 @@ public class AuthService {
 
     @Transactional
     public AuthenticationResult login(LoginRequest request) {
-        String email = normalizeEmail(request.email());
+        String email = EmailAddress.normalize(request.email());
+
         Authentication authentication = authenticate(email, request.password());
 
         WorkzenoUserDetails userDetails = extractUserDetails(authentication);
@@ -205,9 +207,7 @@ public class AuthService {
         }
     }
 
-    private WorkzenoUserDetails extractUserDetails(
-            Authentication authentication
-    ) {
+    private WorkzenoUserDetails extractUserDetails(Authentication authentication) {
         if (!(authentication.getPrincipal()
                 instanceof WorkzenoUserDetails userDetails)) {
             throw new IllegalStateException(
@@ -351,10 +351,4 @@ public class AuthService {
                 });
     }
 
-    // Locale.ROOT is NOT optional. "I".toLowerCase() under a Turkish locale
-    // yields "ı" (dotless i), which could create a second account for the same
-    // email. Trimming and lowercasing here define the canonical email.
-    private String normalizeEmail(String email) {
-        return email.trim().toLowerCase(Locale.ROOT);
-    }
 }

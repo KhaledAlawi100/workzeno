@@ -2,6 +2,7 @@
 package com.workzeno.workzeno.collaboration.membership.api;
 
 import com.workzeno.workzeno.projects.domain.Project;
+import com.workzeno.workzeno.shared.exception.ApiException;
 
 import java.util.UUID;
 
@@ -13,8 +14,19 @@ import java.util.UUID;
  */
 public interface ProjectAuthorization {
 
+    /**
+     * Checks if the user is the owner of the project.
+     *
+     * @throws ApiException if the user is not the owner
+     */
     void requireOwner(Project project, UUID userId);
 
+
+    /**
+     * Checks if the user is the owner or an admin of the project.
+     *
+     * @throws ApiException if the user is neither the owner nor an admin
+     */
     void requireOwnerOrAdmin(Project project, UUID userId);
 }
 

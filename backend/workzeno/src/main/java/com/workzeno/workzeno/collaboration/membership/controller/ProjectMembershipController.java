@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @Validated
@@ -221,6 +222,48 @@ public class ProjectMembershipController {
                 );
 
         return ResponseEntity.ok(body);
+    }
+
+    /**
+     * Searches project members for task-assignment suggestions.
+     *
+     * Example:
+     * GET /api/v1/projects/{projectId}/members/search?q=ali&limit=10
+     */
+    @GetMapping("/members/search")
+    public ResponseEntity<ApiResponse<List<ProjectMemberResponse>>>
+    searchProjectMembers(
+            @PathVariable UUID projectId,
+
+            @RequestParam("q")
+            @jakarta.validation.constraints.Size(
+                    min = 2,
+                    max = 254,
+                    message = "Search must contain between 2 and 254 characters"
+            )
+            String query,
+
+            @RequestParam(defaultValue = "10")
+            @Min(1) @Max(20)
+            int limit,
+
+            HttpServletRequest httpRequest
+    ) {
+
+        List<ProjectMemberResponse> result =
+                membershipService.searchProjectMembers(
+                        projectId,
+                        query,
+                        limit
+                );
+
+        return ResponseEntity.ok(
+                responseFactory.success(
+                        "Project member suggestions retrieved successfully",
+                        result,
+                        httpRequest
+                )
+        );
     }
 
 }
