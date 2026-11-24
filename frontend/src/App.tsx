@@ -9,7 +9,8 @@ import PublicLayout from "./app/layout/PublicLayout";
 import AppLayout from "./app/layout/AppLayout";
 
 // Public pages
-const LandingPage = lazy(() => import("./pages/landing/LandingPage"));const HealthPage = lazy(() => import("./pages/HealthPage"));
+const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
+const HealthPage = lazy(() => import("./pages/HealthPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
@@ -25,17 +26,22 @@ const ProjectDetailsPage = lazy(
   () => import("./features/projects/pages/ProjectDetailsPage"),
 );
 
+const ProjectTasksPage = lazy(
+  () => import("./features/tasks/pages/ProjectTasksPage"),
+);
+
 const ProjectMembersPage = lazy(
   () => import("./features/collaboration/membership/pages/ProjectMembersPage"),
 );
 
 const ProjectInvitationsPage = lazy(
-  () => import("./features/collaboration/invitation/pages/ProjectInvitationsPage"),
+  () =>
+    import("./features/collaboration/invitation/pages/ProjectInvitationsPage"),
 );
 
-
-
-const MyInvitationsPage = lazy(() => import("./features/collaboration/invitation/pages/MyInvitationsPage"));
+const MyInvitationsPage = lazy(
+  () => import("./features/collaboration/invitation/pages/MyInvitationsPage"),
+);
 
 function PageLoadingFallback() {
   return (
@@ -86,16 +92,22 @@ export default function App() {
               element={<ProjectDetailsPage />}
             />
 
+            {/* Project task board */}
+            <Route
+              path="/projects/:projectId/tasks"
+              element={<ProjectTasksPage />}
+            />
 
             <Route
               path="/projects/:projectId/members"
               element={<ProjectMembersPage />}
             />
+
             <Route
               path="/projects/:projectId/invitations"
               element={<ProjectInvitationsPage />}
             />
-            
+
             <Route path="/invitations" element={<MyInvitationsPage />} />
           </Route>
 

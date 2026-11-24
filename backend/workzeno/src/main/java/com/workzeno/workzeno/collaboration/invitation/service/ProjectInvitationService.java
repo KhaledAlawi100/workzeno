@@ -45,7 +45,7 @@ public class ProjectInvitationService {
     private static final String PENDING_INVITATION_CONSTRAINT =
             "uq_project_invitations_pending_project_email";
 
-    
+
     private static final int INVITATION_EXPIRATION_BATCH_SIZE = 100;
 
     private final ProjectInvitationRepository invitationRepository;

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { MouseEvent } from "react";
+
 import {
   Alert,
   Button,
@@ -19,35 +20,48 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutlined";
 
-import type { ProjectMember } from "../membership.types";
+import type { ProjectMember, ProjectMembershipRole } from "../membership.types";
+
+import { useProjectTeamContext } from "../context/ProjectTeamContext";
 
 interface MemberRoleMenuProps {
   member: ProjectMember;
-  canChangeRole: boolean;
-  canRemoveMember: boolean;
-  isRolePending?: boolean;
-  isRemovePending?: boolean;
 
-  onChangeRole?: (role: "ADMIN" | "MEMBER") => Promise<void>;
-  onRemove?: () => void;
+  // This callback only opens the parent card's local confirmation dialog.
+  onRemove: () => void;
 }
 
 export default function MemberRoleMenu({
   member,
-  canChangeRole,
-  canRemoveMember,
-  isRolePending = false,
-  isRemovePending = false,
-  onChangeRole,
   onRemove,
 }: MemberRoleMenuProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
 
+  const {
+    isOwner,
+    isAdmin,
+    canManageMembers,
+    isRolePending,
+    isRemovePending,
+    changeRole,
+  } = useProjectTeamContext();
+
+  const memberRolePending = isRolePending(member.userId);
+  const memberRemovalPending = isRemovePending(member.userId);
+
+  // Only the owner can change another member's role.
+  const canChangeRole = canManageMembers && isOwner;
+
+  // The owner can remove anyone; an admin can remove regular members only.
+  const canRemoveMember =
+    canManageMembers && (isOwner || (isAdmin && member.role === "MEMBER"));
+
   const open = Boolean(anchorEl);
 
   // A MEMBER can be promoted; an ADMIN can be changed to MEMBER.
-  const newRole = member.role === "MEMBER" ? "ADMIN" : "MEMBER";
+  const newRole: ProjectMembershipRole =
+    member.role === "MEMBER" ? "ADMIN" : "MEMBER";
 
   function handleOpen(event: MouseEvent<HTMLElement>) {
     setAnchorEl(event.currentTarget);
@@ -63,22 +77,18 @@ export default function MemberRoleMenu({
   }
 
   async function handleConfirmRoleChange() {
-    if (!onChangeRole) {
-      return;
-    }
-
     try {
-      await onChangeRole(newRole);
+      await changeRole(member.userId, newRole);
       setRoleDialogOpen(false);
     } catch {
       // Keep the dialog open when the API request fails.
-      // The parent component displays the error notification.
+      // The action hook displays the error notification.
     }
   }
 
   function handleRemove() {
     handleClose();
-    onRemove?.();
+    onRemove();
   }
 
   // Do not render an empty menu when no actions are permitted.
@@ -94,7 +104,7 @@ export default function MemberRoleMenu({
         aria-expanded={open ? "true" : undefined}
         onClick={handleOpen}
         size="small"
-        disabled={isRolePending || isRemovePending}
+        disabled={memberRolePending || memberRemovalPending}
       >
         <MoreVertIcon />
       </IconButton>
@@ -113,7 +123,10 @@ export default function MemberRoleMenu({
         }}
       >
         {canChangeRole && (
-          <MenuItem onClick={handleSelectRoleChange} disabled={isRolePending}>
+          <MenuItem
+            onClick={handleSelectRoleChange}
+            disabled={memberRolePending}
+          >
             <ListItemIcon>
               {newRole === "ADMIN" ? (
                 <AdminPanelSettingsOutlinedIcon fontSize="small" />
@@ -132,7 +145,7 @@ export default function MemberRoleMenu({
           <MenuItem
             onClick={handleRemove}
             sx={{ color: "error.main" }}
-            disabled={isRemovePending}
+            disabled={memberRemovalPending}
           >
             <ListItemText>Remove from project</ListItemText>
           </MenuItem>
@@ -142,7 +155,7 @@ export default function MemberRoleMenu({
       {/* Confirm the role change before sending the PATCH request. */}
       <Dialog
         open={roleDialogOpen}
-        onClose={isRolePending ? undefined : () => setRoleDialogOpen(false)}
+        onClose={memberRolePending ? undefined : () => setRoleDialogOpen(false)}
         fullWidth
         maxWidth="xs"
       >
@@ -165,7 +178,7 @@ export default function MemberRoleMenu({
           <Button
             color="inherit"
             onClick={() => setRoleDialogOpen(false)}
-            disabled={isRolePending}
+            disabled={memberRolePending}
           >
             Cancel
           </Button>
@@ -173,9 +186,9 @@ export default function MemberRoleMenu({
           <Button
             variant="contained"
             onClick={handleConfirmRoleChange}
-            disabled={isRolePending}
+            disabled={memberRolePending}
           >
-            {isRolePending ? "Updating..." : "Confirm change"}
+            {memberRolePending ? "Updating..." : "Confirm change"}
           </Button>
         </DialogActions>
       </Dialog>

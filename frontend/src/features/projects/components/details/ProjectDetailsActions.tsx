@@ -1,9 +1,12 @@
 import { Link } from "react-router-dom";
+
 import { Alert, Button, Stack, Typography } from "@mui/material";
+
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
 import RestoreOutlinedIcon from "@mui/icons-material/RestoreOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 
 interface ProjectDetailsActionsProps {
   projectId: string;
@@ -44,7 +47,7 @@ export default function ProjectDetailsActions({
 }: ProjectDetailsActionsProps) {
   return (
     <Stack
-      direction={"column"}
+      direction="column"
       spacing={1}
       sx={{
         width: { xs: "100%", sm: "auto" },
@@ -59,6 +62,17 @@ export default function ProjectDetailsActions({
         fullWidth
       >
         View team
+      </Button>
+
+      {/* Every project viewer can access the project's task board. */}
+      <Button
+        component={Link}
+        to={`/projects/${encodeURIComponent(projectId)}/tasks`}
+        variant="outlined"
+        startIcon={<TaskAltOutlinedIcon />}
+        fullWidth
+      >
+        View tasks
       </Button>
 
       {/* Show feedback while the current user's role is being checked. */}

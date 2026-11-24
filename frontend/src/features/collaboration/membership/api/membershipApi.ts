@@ -88,8 +88,6 @@ export async function removeProjectMember(
   return response.data.data;
 }
 
-
-
 export async function getMyProjectMembership(
   projectId: string,
   signal?: AbortSignal,
@@ -97,6 +95,26 @@ export async function getMyProjectMembership(
   const response = await apiClient.get<ApiResponse<MyProjectMembership>>(
     `/projects/${encodeURIComponent(projectId)}/my-membership`,
     {
+      signal,
+    },
+  );
+
+  return response.data.data;
+}
+
+export async function searchProjectMembers(
+  projectId: string,
+  query: string,
+  limit = 10,
+  signal?: AbortSignal,
+): Promise<ProjectMember[]> {
+  const response = await apiClient.get<ApiResponse<ProjectMember[]>>(
+    `/projects/${encodeURIComponent(projectId)}/members/search`,
+    {
+      params: {
+        q: query,
+        limit,
+      },
       signal,
     },
   );

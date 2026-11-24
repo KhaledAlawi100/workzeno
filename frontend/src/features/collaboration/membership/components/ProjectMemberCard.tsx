@@ -12,8 +12,9 @@ import {
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutlined";
 
-import type { ProjectMember, ProjectMembershipRole } from "../membership.types";
+import type { ProjectMember } from "../membership.types";
 
+import { useProjectTeamContext } from "../context/ProjectTeamContext";
 import { formatMemberDate } from "../utils/formatMemberDate";
 
 import MemberRoleMenu from "./MemberRoleMenu";
@@ -21,28 +22,13 @@ import RemoveMemberDialog from "./RemoveMemberDialog";
 
 interface ProjectMemberCardProps {
   member: ProjectMember;
-  isOwner: boolean;
-  isAdmin: boolean;
-  canManageMembers: boolean;
-
-  isRolePending?: boolean;
-  isRemovePending?: boolean;
-
-  onChangeRole?: (role: ProjectMembershipRole) => Promise<void>;
-  onRemoveMember?: () => Promise<void>;
 }
 
-export default function ProjectMemberCard({
-  member,
-  isOwner,
-  isAdmin,
-  canManageMembers,
-  isRolePending = false,
-  isRemovePending = false,
-  onChangeRole,
-  onRemoveMember,
-}: ProjectMemberCardProps) {
+export default function ProjectMemberCard({ member }: ProjectMemberCardProps) {
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+
+  const { isOwner, isAdmin, canManageMembers, isRemovePending, removeMember } =
+    useProjectTeamContext();
 
   const isAdminMember = member.role === "ADMIN";
 
@@ -52,27 +38,24 @@ export default function ProjectMemberCard({
   // The owner can remove anyone; an admin can remove regular members only.
   const canRemoveMember = isOwner || (isAdmin && member.role === "MEMBER");
 
-  // Also require a callback so the UI never displays a non-working action.
+  const memberRemovalPending = isRemovePending(member.userId);
+
+  // Avoid displaying management actions when permissions are unavailable.
   const showManagementMenu =
-    canManageMembers &&
-    ((canChangeRole && Boolean(onChangeRole)) ||
-      (canRemoveMember && Boolean(onRemoveMember)));
+    canManageMembers && (canChangeRole || canRemoveMember);
 
   const avatarLetter = member.email?.charAt(0).toUpperCase() || "?";
 
-async function handleConfirmRemoval() {
-  if (!onRemoveMember) {
-    return;
+  async function handleConfirmRemoval() {
+    try {
+      // Close the dialog only after the server confirms removal.
+      await removeMember(member.userId);
+      setRemoveDialogOpen(false);
+    } catch {
+      // Keep the dialog open. The provider's action hook displays the error.
+    }
   }
 
-  try {
-    // Close the dialog only after the server confirms removal.
-    await onRemoveMember();
-    setRemoveDialogOpen(false);
-  } catch {
-    // Keep the dialog open. The parent displays the error notification.
-  }
-}
   return (
     <>
       <Card
@@ -151,11 +134,6 @@ async function handleConfirmRemoval() {
               {showManagementMenu && (
                 <MemberRoleMenu
                   member={member}
-                  canChangeRole={canChangeRole && Boolean(onChangeRole)}
-                  canRemoveMember={canRemoveMember && Boolean(onRemoveMember)}
-                  isRolePending={isRolePending}
-                  isRemovePending={isRemovePending}
-                  onChangeRole={onChangeRole}
                   onRemove={() => setRemoveDialogOpen(true)}
                 />
               )}
@@ -167,10 +145,13 @@ async function handleConfirmRemoval() {
       <RemoveMemberDialog
         open={removeDialogOpen}
         memberEmail={member.email}
-        isPending={isRemovePending}
+        isPending={memberRemovalPending}
         onClose={() => setRemoveDialogOpen(false)}
         onConfirm={handleConfirmRemoval}
       />
+
+      {/* The menu opens this card's own removal confirmation dialog. */}
+      {/* MemberRoleMenu needs to receive this local callback. */}
     </>
   );
 }
