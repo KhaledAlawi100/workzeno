@@ -1,12 +1,20 @@
+
 import { useState } from "react";
 
-import { AppBar, Box, Divider, IconButton, Toolbar } from "@mui/material";
+import {
+  AppBar,
+  Box,
+  Divider,
+  IconButton,
+  Toolbar,
+} from "@mui/material";
 
 import MenuIcon from "@mui/icons-material/Menu";
 
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../../features/auth/AuthContext";
+import NotificationMenu from "../../../features/notifications/components/NotificationMenu";
 
 import type { NavbarVariant } from "./navbar.types";
 
@@ -98,6 +106,8 @@ export default function AppNavbar({ variant }: AppNavbarProps) {
               ) : (
                 <>
                   <AuthenticatedNavigation />
+
+                  <NotificationMenu />
 
                   <Divider orientation="vertical" flexItem />
 

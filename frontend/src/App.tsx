@@ -43,6 +43,13 @@ const MyInvitationsPage = lazy(
   () => import("./features/collaboration/invitation/pages/MyInvitationsPage"),
 );
 
+
+const NotificationsPage = lazy(
+  () => import("./features/notifications/pages/NotificationsPage"),
+);
+
+
+
 function PageLoadingFallback() {
   return (
     <Box
@@ -109,6 +116,8 @@ export default function App() {
             />
 
             <Route path="/invitations" element={<MyInvitationsPage />} />
+
+            <Route path="/notifications" element={<NotificationsPage />} />
           </Route>
 
           {/* Unknown routes */}

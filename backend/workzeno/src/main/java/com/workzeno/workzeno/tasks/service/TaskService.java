@@ -20,6 +20,11 @@ import com.workzeno.workzeno.tasks.repository.TaskAssigneeRepository;
 import com.workzeno.workzeno.tasks.repository.TaskAssigneeView;
 import com.workzeno.workzeno.tasks.repository.TaskRepository;
 
+import com.workzeno.workzeno.notification.domain.NotificationType;
+import com.workzeno.workzeno.notification.event.NotificationEvent;
+
+import org.springframework.context.ApplicationEventPublisher;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
@@ -52,6 +57,7 @@ public class TaskService {
     private final CurrentUserProvider currentUserProvider;
     private final TaskMapper taskMapper;
     private final ProjectAuthorization authorizationService;
+    private final ApplicationEventPublisher eventPublisher;
     private final ProjectModificationPolicy  projectModificationPolicy;
 
     // ============================================================
@@ -103,6 +109,21 @@ public class TaskService {
                     .toList();
 
             taskAssigneeRepository.saveAll(assignments);
+
+            for (ProjectMembership membership : memberships) {
+
+                eventPublisher.publishEvent(new NotificationEvent(
+                        membership.getUser().getId(),
+                        currentUserId,
+                        NotificationType.TASK_ASSIGNED,
+                        "You were assigned a task",
+                        "You were assigned to \"" + savedTask.getTitle()
+                                + "\" in project \"" + project.getName() + "\".",
+                        "/projects/" + projectId + "/tasks",
+                        "TASK",
+                        savedTask.getId()
+                ));
+            }
         }
 
         Map<UUID, List<TaskAssigneeResponse>> assigneesByTaskId =
@@ -295,6 +316,18 @@ public class TaskService {
         );
 
         taskAssigneeRepository.save(assignment);
+
+        eventPublisher.publishEvent(new NotificationEvent(
+                membership.getUser().getId(),
+                currentUserId,
+                NotificationType.TASK_ASSIGNED,
+                "You were assigned a task",
+                "You were assigned to \"" + task.getTitle()
+                        + "\" in project \"" + project.getName() + "\".",
+                "/projects/" + projectId + "/tasks",
+                "TASK",
+                task.getId()
+        ));
 
         Map<UUID, List<TaskAssigneeResponse>> assigneesByTaskId =
                 loadAssigneesByTaskIds(List.of(taskId));

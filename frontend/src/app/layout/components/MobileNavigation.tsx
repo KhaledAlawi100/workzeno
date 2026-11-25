@@ -1,5 +1,6 @@
 import {
   Avatar,
+  Badge,
   Box,
   Button,
   Divider,
@@ -13,10 +14,13 @@ import {
 } from "@mui/material";
 
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 
 import { Link as RouterLink, useLocation } from "react-router-dom";
 
 import type { UserProfile } from "../../../features/auth/api/authApi";
+
+import { useUnreadNotificationCount } from "../../../features/notifications/hooks/useUnreadNotificationCount";
 
 import { appLinks, publicLinks } from "./navigation.config";
 import type { NavbarVariant } from "./navbar.types";
@@ -32,6 +36,34 @@ type MobileNavigationProps = {
   onLogout: () => void;
 };
 
+function MobileNotificationsLink({ onClose }: { onClose: () => void }) {
+  const location = useLocation();
+  const { data } = useUnreadNotificationCount();
+
+  const unreadCount = data?.unreadCount ?? 0;
+
+  return (
+    <ListItemButton
+      component={RouterLink}
+      to="/notifications"
+      onClick={onClose}
+      selected={location.pathname === "/notifications"}
+      sx={{ borderRadius: 2, mb: 0.5 }}
+    >
+      <Badge
+        badgeContent={unreadCount}
+        color="error"
+        max={99}
+        overlap="circular"
+      >
+        <NotificationsOutlinedIcon fontSize="small" />
+      </Badge>
+
+      <ListItemText primary="Notifications" sx={{ ml: 1.5 }} />
+    </ListItemButton>
+  );
+}
+
 export default function MobileNavigation({
   variant,
   user,
@@ -44,7 +76,6 @@ export default function MobileNavigation({
 
   const isPublic = variant === "public";
 
-  
   function isLinkActive(path: string): boolean {
     if (path === "/projects") {
       return (
@@ -176,6 +207,9 @@ export default function MobileNavigation({
                   <ListItemText primary={item.label} sx={{ ml: 1.5 }} />
                 </ListItemButton>
               ))}
+
+              {/* Notifications */}
+              <MobileNotificationsLink onClose={onClose} />
             </List>
 
             <Divider />

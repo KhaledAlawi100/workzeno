@@ -19,6 +19,11 @@ import com.workzeno.workzeno.shared.exception.ApiException;
 import com.workzeno.workzeno.collaboration.membership.api.MembershipManagement;
 import com.workzeno.workzeno.collaboration.membership.api.ProjectAuthorization;
 
+import com.workzeno.workzeno.notification.domain.NotificationType;
+import com.workzeno.workzeno.notification.event.NotificationEvent;
+
+import org.springframework.context.ApplicationEventPublisher;
+
 import lombok.RequiredArgsConstructor;
 
 import org.hibernate.exception.ConstraintViolationException;
@@ -57,6 +62,8 @@ public class ProjectInvitationService {
     private final ProjectAccessService projectAccessService;
     private final ProjectInvitationMapper invitationMapper;
     private final ProjectModificationPolicy projectModificationPolicy;
+    private final ApplicationEventPublisher eventPublisher;
+
 
     @Value("${app.collaboration.invitation.ttl}")
     private Duration invitationTtl;
@@ -131,9 +138,23 @@ public class ProjectInvitationService {
             ProjectInvitation savedInvitation =
                     invitationRepository.saveAndFlush(invitation);
 
+            eventPublisher.publishEvent(new NotificationEvent(
+                    invitee.getId(),
+                    inviter.getId(),
+                    NotificationType.PROJECT_INVITATION,
+                    "Project invitation",
+                    "You were invited to join \"" + project.getName() + "\".",
+                    "/invitations",
+                    "PROJECT_INVITATION",
+                    savedInvitation.getId()
+            ));
+
+
             return invitationMapper.toCreateInvitationResponse(
                     savedInvitation
             );
+
+
 
         } catch (DataIntegrityViolationException exception) {
 
@@ -256,6 +277,19 @@ public class ProjectInvitationService {
         );
 
         invitationRepository.save(invitation);
+
+        eventPublisher.publishEvent(new NotificationEvent(
+                invitation.getInvitedBy().getId(),
+                acceptingUser.getId(),
+                NotificationType.INVITATION_ACCEPTED,
+                "Invitation accepted",
+                acceptingUser.getEmail()
+                        + " accepted your invitation to join \""
+                        + project.getName() + "\".",
+                "/projects/" + project.getId(),
+                "PROJECT_INVITATION",
+                invitation.getId()
+        ));
 
         return invitationMapper.toAcceptInvitationResponse(invitation);
     }
