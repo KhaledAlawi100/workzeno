@@ -16,7 +16,7 @@ const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 // Protected pages
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const DashboardPage = lazy(() => import("./features/dashboard/pages/DashboardPage"));
 
 const ProjectsPage = lazy(
   () => import("./features/projects/pages/ProjectsPage"),

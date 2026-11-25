@@ -41,7 +41,7 @@ public class ProjectMembershipService implements MembershipManagement {
     private final ProjectAccessService projectAccessService;
     private final ProjectMembershipMapper membershipMapper;
     private final TaskAssigneeRepository taskAssigneeRepository;
-    ProjectModificationPolicy projectModificationPolicy;
+    private final ProjectModificationPolicy projectModificationPolicy;
 
     @Transactional
     public void addMember(UUID projectId, AddProjectMemberRequest request) {
@@ -130,25 +130,12 @@ public class ProjectMembershipService implements MembershipManagement {
                 currentUserId
         );
 
-        /*
-         * Step 1:
-         * Delete every task assignment belonging to this member
-         * inside this project.
-         *
-         * This must happen before deleting the membership because
-         * the database foreign key uses ON DELETE NO ACTION.
-         */
+
         taskAssigneeRepository.deleteAllByProjectIdAndUserId(
                 projectId,
                 targetUserId
         );
 
-        /*
-         * Step 2:
-         * Now it is safe to delete the membership.
-         *
-         * Tasks and comments are not deleted.
-         */
         membershipRepository.delete(membership);
     }
 
