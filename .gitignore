@@ -1,27 +1,30 @@
-@'
-# Environment secrets
+
+# Environment files and secrets
 .env
 .env.*
 !.env.example
 
 # Java / Spring Boot
 backend/**/target/
+backend/**/build/
 *.class
 
 # Node.js / React
 frontend/node_modules/
 frontend/dist/
+frontend/dist-ssr/
 frontend/.vite/
+frontend/coverage/
+
+# Docker
+*.log
 
 # IDEs
 .idea/
 .vscode/
 *.iml
+*.iws
 
-# Operating system
+# Operating systems
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log
-'@ | Set-Content .gitignore

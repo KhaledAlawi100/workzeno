@@ -1,0 +1,37 @@
+
+server:
+  # Render provides PORT. Local Docker defaults to 8080.
+  port: ${PORT:8080}
+
+  # Handle requests correctly behind Render's HTTPS proxy.
+  forward-headers-strategy: framework
+
+  # Allow graceful shutdown during container replacement.
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+  jpa:
+    show-sql: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.workzeno.workzeno: INFO
+    org.springframework.security: WARN
+    org.hibernate: WARN
+    org.flywaydb: INFO
+
