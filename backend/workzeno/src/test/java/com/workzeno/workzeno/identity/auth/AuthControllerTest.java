@@ -109,7 +109,7 @@ class AuthControllerTest {
         assertThat(setCookie).contains("refreshToken=" + OLD_REFRESH_TOKEN);
         assertThat(setCookie).contains("HttpOnly");
         assertThat(setCookie).contains("Path=/api/v1/auth");
-        assertThat(setCookie).contains("SameSite=Lax");
+        assertThat(setCookie).contains("SameSite=None");
         assertThat(setCookie).doesNotContain("Secure");
 
         verify(authService).login(request);
@@ -148,7 +148,7 @@ class AuthControllerTest {
         assertThat(setCookie).contains("refreshToken=" + NEW_REFRESH_TOKEN);
         assertThat(setCookie).contains("HttpOnly");
         assertThat(setCookie).contains("Path=/api/v1/auth");
-        assertThat(setCookie).contains("SameSite=Lax");
+        assertThat(setCookie).contains("SameSite=None");
 
         verify(authOriginValidator).validate(httpRequest);
         verify(authService).refresh(new RefreshRequest(OLD_REFRESH_TOKEN));
