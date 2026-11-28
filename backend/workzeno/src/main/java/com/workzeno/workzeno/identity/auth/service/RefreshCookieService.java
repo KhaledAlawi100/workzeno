@@ -37,7 +37,7 @@ public class RefreshCookieService {
         return ResponseCookie.from(COOKIE_NAME, token)
                 .httpOnly(true)
                 .secure(secure)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path(COOKIE_PATH)
                 .maxAge(maxAge)
                 .build();
